@@ -9,6 +9,8 @@ from typing import Tuple, List
 import logging
 from datetime import datetime
 import iteration_utilities
+import math
+from sklearn.model_selection import train_test_split
 
 from oligo_designer_toolsuite.sequence_generator import OligoSequenceGenerator
 from oligo_designer_toolsuite.database import OligoDatabase
@@ -43,6 +45,32 @@ def split_list(l: list, spilts_perc: list[float]):
         final_splits.append(l[splits[i]:splits[i+1]])
     return final_splits
 
+def split_genes_stratified(gene_data, splits_perc: list[float], random_state: None):
+    assert math.isclose(sum(splits_perc), 1, abs_tol=0.001), "The splits percentages must sum up to 1"
+    assert len(splits_perc) == 3, "The percentages must be defined for train, validation and test sets"
+
+    # train data vs. rest
+    genes_train, genes_rest = train_test_split(
+        gene_data,
+        test_size=splits_perc[1] + splits_perc[2],
+        random_state=random_state,
+        stratify=gene_data['region_type']
+    )
+
+    # validation data vs. test data
+    genes_validation, genes_test = train_test_split(
+        genes_rest,
+        test_size=splits_perc[2] / (splits_perc[1] + splits_perc[2]),
+        random_state=random_state,
+        stratify=genes_rest['region_type']
+    )
+
+    final_splits = [genes_train["region_id"].tolist(),
+                    genes_validation["region_id"].tolist(),
+                    genes_test["region_id"].tolist()
+                    ]
+    return final_splits
+
 def sample_oligos(oligo_database: OligoDatabase, oligos_per_region: int):
     for region in oligo_database.database.keys():
         oligo_ids = list(oligo_database.database[region].keys())
@@ -71,7 +99,8 @@ def mutate(nt: str) -> str:
 def compute_free_energy(seq_1: str, seq_2: str, temperature: float) -> float:
     strand_1 = nupack.Strand(seq_1, name="strand_1")
     strand_2 = nupack.Strand(seq_2, name="strand_2")
-    set = nupack.ComplexSet(strands=[strand_1, strand_2], complexes=nupack.SetSpec(max_size=2))
+    set = nupack.ComplexSet(strands=[strand_1, strand_2],
+                            complexes=nupack.SetSpec(max_size=2, exclude=[[strand_1], [strand_2], [strand_1, strand_1], [strand_2, strand_2]]))
     model = nupack.Model(material="dna", celsius=temperature)
     results = nupack.complex_analysis(complexes=set, model=model, compute=['pfunc'])
     return results[nupack.Complex(strands=[strand_1, strand_2])].free_energy
@@ -88,11 +117,11 @@ def sample_temperatures(n: int = 1) -> List[float]:
     for _ in range(n):
         p = random.random()
         if p <= 0.85:
-            temperatures.append(random.uniform(30, 80))
+            temperatures.append(random.uniform(35, 65))
         elif p <= 0.95:
-            temperatures.append(random.uniform(80,100))
+            temperatures.append(random.uniform(66, 90))
         else:
-            temperatures.append(random.uniform(20, 30))
+            temperatures.append(random.uniform(20, 34))
     return temperatures
 
 def generate_off_targets(sequence: Seq, config) -> list[Tuple[str,str, int, float]]:
@@ -144,7 +173,7 @@ def generate_dataset(alignments: list):
             gc_fraction(oligo),
             off_target,
             len(off_target), # off target length
-            round(gc_fraction(off_target)), # off target gc content
+            gc_fraction(off_target), # off target gc content
             nr_mismatches,
             temperature,
             free_energy,

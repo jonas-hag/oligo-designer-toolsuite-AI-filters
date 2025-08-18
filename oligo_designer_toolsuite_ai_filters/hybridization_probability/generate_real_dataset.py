@@ -5,7 +5,7 @@ import yaml
 import random
 import copy
 import time
-from typing import Tuple
+from typing import Tuple, Union, List
 import logging
 from datetime import datetime
 import iteration_utilities
@@ -25,10 +25,11 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import pandas as pd
 import nupack
-from math import log
+from math import log, ceil
 import joblib
+import numpy as np
 
-from  oligo_designer_toolsuite_ai_filters.hybridization_probability.generate_artificial_dataset import split_list, generate_datasamples, generate_dataset, sample_temperatures
+from  oligo_designer_toolsuite_ai_filters.hybridization_probability.generate_artificial_dataset import split_genes_stratified, generate_datasamples, generate_dataset, sample_temperatures
 
 
 base_pair = {'A':'T', 'T':'A', 'C':'G', 'G':'C', 'a':'T', 't':'A', 'c':'G', 'g':'C'}
@@ -38,8 +39,8 @@ def generate_off_targets_region(
         oligo_database: OligoDatabase, 
         alignment_method: BlastNFilter, 
         file_index: str, region_id: str, 
-        file_reference: str, 
-        concentration: float
+        file_reference: str,
+        sampled_oligos_per_region: int
     ):
     """Return a list of all the retrived off target sites in the following format:
 
@@ -52,20 +53,34 @@ def generate_off_targets_region(
     :type file_index: str
     :param region_id: _description_
     :type region_id: str
+    :param file_reference: _description_
+    :type file_reference: str
+    :param sampled_oligos_per_region: how many oligos to sample from each region before running the filter
+    :type sampled_oligos_per_region: int
     """
 
+    # downsample the oligo_database for better efficiency
+    # assume 5 off-target hits per oligo
+    number_regions = oligo_database.database.keys()
+
     # run the filter
+    filtered_oligo_database = copy.deepcopy(oligo_database)
+    oligo_ids = filtered_oligo_database.get_oligoid_list()
+    oligo_id_sample = random.sample(population=oligo_ids, k=min(sampled_oligos_per_region, len(oligo_ids)))
+    filtered_oligo_database.filter_database_by_oligo(remove_region=False, oligo_ids=oligo_id_sample)
+
     table_hits = alignment_method._run_filter(
         sequence_type='oligo',
         region_id=region_id,
-        oligo_database=oligo_database,
-        file_index=file_index,
+        oligo_database=filtered_oligo_database,
+        file_reference=file_index,
         consider_hits_from_input_region=True,
+        mode=2
     )
 
     # add the gaps
     references = alignment_method._get_references(table_hits, file_reference, region_id)
-    queries = alignment_method._get_queries(oligo_database, table_hits,'oligo', region_id)
+    queries = alignment_method._get_queries(filtered_oligo_database, table_hits, region_id, 'oligo')
     unique_queries = list(set(queries))
     # align the references and queries by adding gaps
     gapped_queries, gapped_references = alignment_method._add_alignment_gaps(
@@ -90,17 +105,37 @@ def generate_off_targets(
         dataset_size: int, 
         file_reference: str
     ):
-    off_target_regions = joblib.Parallel(n_jobs=config["n_jobs"])(
-        joblib.delayed(generate_off_targets_region)(
+
+    # the oligo_database will be downsampled for better efficiency
+    # for this, we need to calculate how many oligos we want to sample from each region
+    # assume 5 off-target hits per oligo
+    number_regions = oligo_database.database.keys()
+    sampled_oligos_per_region = int(ceil(dataset_size / (5 * len(number_regions))))
+
+    # off_target_regions = joblib.Parallel(n_jobs=config["n_jobs"])(
+    #     joblib.delayed(generate_off_targets_region)(
+    #         oligo_database=oligo_database,
+    #         alignment_method=alignment_method,
+    #         file_index=file_index,
+    #         region_id=region_id,
+    #         file_reference=file_reference,
+    #         sampled_oligos_per_region=sampled_oligos_per_region
+    #     )
+    #     for region_id in oligo_database.database.keys()
+    # )
+
+    off_target_regions = []
+    for region_id in oligo_database.database.keys():
+        results = generate_off_targets_region(
             oligo_database=oligo_database,
             alignment_method=alignment_method,
             file_index=file_index,
             region_id=region_id,
             file_reference=file_reference,
-            concentration=config["concentration"]
+            sampled_oligos_per_region=sampled_oligos_per_region
         )
-        for region_id in oligo_database.database.keys()
-    )
+        off_target_regions.append(results)
+
     # flatten the list
     off_target_regions = [off_target for region in off_target_regions for off_target in region]
     
@@ -126,7 +161,7 @@ def sample_oligos(oligo_database: OligoDatabase, oligos_per_region: int):
     return oligo_database
 
 
-def generate_oligos(config: dict, dir_output: str, regions: list, oligo_fasta_file: str):
+def generate_oligos(config: dict, dir_output: str, regions: list, oligo_fasta_file: Union[str, List[str]]):
     """Generate the oligo sequences.
     """
 
@@ -141,7 +176,7 @@ def generate_oligos(config: dict, dir_output: str, regions: list, oligo_fasta_fi
     )
     oligo_database.load_database_from_fasta(
         files_fasta=oligo_fasta_file,
-        sequence_type="target",
+        sequence_type="oligo",
         region_ids=regions,
         database_overwrite = True,
     )
@@ -160,22 +195,17 @@ def generate_oligos(config: dict, dir_output: str, regions: list, oligo_fasta_fi
 
 
 def main():
-    """Generate an real dataset containing oligos and some hand-crafted mutations with the 
-    relative mutations scores. The oligos are extracted form a given list of genes and uniformly sampled to match 
-    the desidred dataset size. These oligos are then mutated by applying 0 to max_mutaions base-pairs mutations to generate potential off-targets.
-    (REMARK: for each nr. of mutations we create an off-target region startic from each nucleotide of the oligo sequence
-    and selecting the remaining mutated nucleotides uniformly. Therefore, from each oligo we generate 
-    O(max_mutations * oligo_length) off-target regions.)
+    """
+    Generate a real dataset containing oligos and real off-targets identified by a given alignment method (e.g. blastn, bowtie). 
+    The oligos are extracted from a given list of genetic regions and sampled to match the desired dataset size.
+    Oligos with lengths up to 50 nucleotides are created using a sliding window approach with a stride of 1,
+    while longer oligos are created with a stride of 2.
+    The genetic regions contain both genes and intergenic regions.
+    These oligos are then aligned to their corresponding reference genome and real potential off-target regions identified.
 
-    The duplexing score is obtained from the final concentration of DNA complexes in NUPACK tube experiment simulation
-    that contains the oligo sequence, the exact on-target region and the off-target. The oligo, on-target and off-target
-     strands are initially set at the same concentration $C_{in}$ and we define the duplexing score as: 
-    
-    log( C_{oligo + off-t} /C_{oligo + off-t}  + C_{oligo + on-t}  ). 
-    
-    The oligos, the on-target regions and off-target regions are inserted in order to compare the amount of oligos that 
-    bind to one and to the other. Additionally the log is used to sterch the scored distribution making them 
-    easier to predict and a small value eps = 1e-12 is used for numerical stability.
+    For every oligo, the free energy of binding to its on-target region and the off-target regions is computed using NUPACK.
+    For the binding to its on-target region, 6 different temperatures are samples, with a focus on 35-65 degrees Celsius,
+    the total range is 20-90 degrees Celsius. For the binding to the off-target regions, 2 temperatures are sampled,
     """
 
     #########################
@@ -195,6 +225,7 @@ def main():
     dataset_name = f"real_dataset_{config['alignment_method']}_{config['dataset_size']}_{config['oligo_length_min']}_{config['oligo_length_max']}_{config['dataset_size']}"
     # set random seed for reproducibility
     random.seed(config["seed"])
+    rnd_gene_shuffling = np.random.RandomState(config["seed"] + 154872)
     # generate directories
     os.makedirs(config["dir_output"], exist_ok=True)
     plots_dir = os.path.join(config["dir_output"], f"{dataset_name}_plots")
@@ -210,12 +241,12 @@ def main():
 
     timestamp = datetime.now()
     file_logger = f"log_{dataset_name}_{timestamp.year}-{timestamp.month}-{timestamp.day}-{timestamp.hour}-{timestamp.minute}.txt"
-    logging.getLogger("real_dataset_generation")
     logging.basicConfig(
         format="%(asctime)s [%(levelname)s] %(message)s",
         level=logging.INFO,
         handlers=[logging.FileHandler(file_logger), logging.StreamHandler()],
     )
+    logger = logging.getLogger("real_dataset_generation")
 
     ################################
     # generate the oligo sequences #
@@ -223,61 +254,90 @@ def main():
 
     dir_output = "output_odt_real_" + str(time.time())
 
-    genomic_region_genereator = GenomicRegionGenerator(dir_output = dir_output)
-    region_generator = genomic_region_genereator.load_annotations(source=config["source"], source_params=config["source_params"])
-    files_fasta = genomic_region_genereator.generate_genomic_regions(
-        region_generator = region_generator,
-        genomic_regions  = config["genomic_regions"],
-        block_size = 0,
-    )
+    if config["precalculated_annotation_path"] is not None and config["precalculated_annotation_file"] is not None:
+        files_fasta = [
+            os.path.join(config["precalculated_annotation_path"], f'gene_{config["precalculated_annotation_file"]}'),
+            os.path.join(config["precalculated_annotation_path"], f'intergenic_{config["precalculated_annotation_file"]}'),
+        ]
+    else:
+        genomic_region_genereator = GenomicRegionGenerator(dir_output = dir_output)
+        region_generator = genomic_region_genereator.load_annotations(source=config["source"], source_params=config["source_params"])
+        files_fasta = genomic_region_genereator.generate_genomic_regions(
+            region_generator = region_generator,
+            genomic_regions  = config["genomic_regions"],
+            block_size = 0,
+        )
 
-    with open(config["file_genes"]) as handle:
-        lines = handle.readlines()
-        genes = [line.rstrip() for line in lines]
-    genes_train, genes_validation, genes_test = split_list(genes, config["splits_size"])
-    logging.info(f"Length of genes: {len(genes)}")
-    logging.info(f"Length of genes train: {len(genes_train)}")
-    logging.info(f"Length of genes validation: {len(genes_validation)}")
-    logging.info(f"Length of genes test: {len(genes_test)}")
+    
+
+    # the gene list now also contains intergenic regions
+    # genes_df must contain the columns region_id and region_type
+    genes_df = pd.read_csv(config["file_genes"])
+    genes = genes_df["region_id"].tolist()
+    genes_train, genes_validation, genes_test = split_genes_stratified(genes_df, config["splits_size"], rnd_gene_shuffling)
+    logger.info(f"Length of genes: {len(genes)}")
+    logger.info(f"Length of genes train: {len(genes_train)}")
+    logger.info(f"Length of genes validation: {len(genes_validation)}")
+    logger.info(f"Length of genes test: {len(genes_test)}")
 
     ##### creating the oligo sequences #####
     oligo_sequences = OligoSequenceGenerator(dir_output=dir_output)
-    oligo_fasta_file = oligo_sequences.create_sequences_sliding_window(
-        files_fasta_in=files_fasta,
-        length_interval_sequences=(config["oligo_length_min"], config["oligo_length_max"]),
-        region_ids=genes,
-        n_jobs=config["n_jobs"],
-    )
-    logging.info("Generationg Oligo seqeunces.")
-    oligo_database_train = generate_oligos(config, dir_output, genes_train, oligo_fasta_file)
+    if config["oligo_length_max"] > 50:
+        oligo_fasta_file_1 = oligo_sequences.create_sequences_sliding_window(
+            files_fasta_in=files_fasta,
+            length_interval_sequences=(config["oligo_length_min"], 50),
+            region_ids=genes,
+            stride=1,
+            n_jobs=config["n_jobs"],
+        )
+        oligo_fasta_file_2 = oligo_sequences.create_sequences_sliding_window(
+            files_fasta_in=files_fasta,
+            length_interval_sequences=(51, config["oligo_length_max"]),
+            region_ids=genes,
+            stride=2,
+            overwrite=False,
+            n_jobs=config["n_jobs"],
+        )
+        oligo_fasta_files = oligo_fasta_file_1 + oligo_fasta_file_2
+    else:
+        oligo_fasta_files = oligo_sequences.create_sequences_sliding_window(
+            files_fasta_in=files_fasta,
+            length_interval_sequences=(config["oligo_length_min"], config["oligo_length_max"]),
+            region_ids=genes,
+            stride=1,
+            n_jobs=config["n_jobs"],
+        )
+
+    logger.info("Generating Oligo sequences.")
+    oligo_database_train = generate_oligos(config, dir_output, genes_train, oligo_fasta_files)
     oligo_database_train = sample_oligos(oligo_database=oligo_database_train, oligos_per_region=config["oligos_per_region"])
-    logging.info("Training set:")
+    logger.info("Training set:")
     for gene in oligo_database_train.database.keys():
         logging.info(f"Gene {gene} has {len(oligo_database_train.database[gene].keys())} oligos.")
-    oligo_database_validation = generate_oligos(config, dir_output, genes_validation, oligo_fasta_file)
+    oligo_database_validation = generate_oligos(config, dir_output, genes_validation, oligo_fasta_files)
     oligo_database_validation = sample_oligos(oligo_database=oligo_database_validation, oligos_per_region=config["oligos_per_region"])
-    logging.info("Validation set:")
+    logger.info("Validation set:")
     for gene in oligo_database_validation.database.keys():
         logging.info(f"Gene {gene} has {len(oligo_database_validation.database[gene].keys())} oligos.")
-    oligo_database_test = generate_oligos(config, dir_output, genes_test, oligo_fasta_file)
+    oligo_database_test = generate_oligos(config, dir_output, genes_test, oligo_fasta_files)
     oligo_database_test = sample_oligos(oligo_database=oligo_database_test, oligos_per_region=config["oligos_per_region"])
-    logging.info("Test set:")
+    logger.info("Test set:")
     for gene in oligo_database_test.database.keys():
-        logging.info(f"Gene {gene} has {len(oligo_database_test.database[gene].keys())} oligos.")
+        logger.info(f"Gene {gene} has {len(oligo_database_test.database[gene].keys())} oligos.")
 
-    logging.info("Generated oligos.")
+    logger.info("Generated oligos.")
 
     ################################
     # generate the reference database #
     ################################
 
-    logging.info("Generating reference database.")
+    logger.info("Generating reference database.")
     reference_database = ReferenceDatabase(dir_output=dir_output)
-    reference_database.load_database_from_fasta(files_fasta = files_fasta, database_overwrite = True,)
-    file_reference = reference_database.write_database_to_fasta(
+    reference_database.load_database_from_file(files=files_fasta, file_type="fasta", database_overwrite = True,)
+    file_reference = reference_database.write_database_to_file(
             filename=f"db_reference",
         )
-
+    logger.info("Generated reference database.")
     # log database information
     
 
@@ -296,12 +356,18 @@ def main():
     elif config["alignment_method"] == "bowtie":
         alignment_method = BowtieFilter(
             search_parameters = config["search_parameters"],
-            hit_parameters = config["hit_parameters"],
             dir_output=dir_output
         )
     else:
         raise ValueError("Unknown alignment method.")
-    file_index = alignment_method._create_index(file_reference=file_reference, n_jobs=config["n_jobs"])
+    
+    logger.info("Generating file index")
+    if config["index_path"] is None:
+        alignment_method.set_reference_database(reference_database=reference_database)
+        file_index = alignment_method.create_reference(n_jobs=config["n_jobs"])
+    else:
+        file_index = config["index_path"]
+    logger.info("Generated file index.")
     
     # sample the oligos
     sample_train = round(config["splits_size"][0]*config["dataset_size"])
@@ -309,6 +375,7 @@ def main():
     sample_test= config["dataset_size"] - sample_train - sample_validation
 
     # train
+    logger.info("Generating real off-targets for the training set.")
     train_dataset = generate_off_targets(
         oligo_database= oligo_database_train, 
         alignment_method = alignment_method, 
@@ -317,8 +384,10 @@ def main():
         dataset_size=sample_train, 
         file_reference=file_reference
     )
+    logger.info("Generated real off-targets for the training set.")
 
     # validation
+    logger.info("Generating real off-targets for the validation set.")
     validation_dataset = generate_off_targets(
         oligo_database = oligo_database_validation, 
         alignment_method = alignment_method, 
@@ -327,8 +396,10 @@ def main():
         dataset_size=sample_validation, 
         file_reference=file_reference
     )
+    logger.info("Generated real off-targets for the validation set.")
 
     # test
+    logger.info("Generating real off-targets for the test set.")
     test_dataset = generate_off_targets(
         oligo_database = oligo_database_test, 
         alignment_method = alignment_method, 
@@ -337,8 +408,7 @@ def main():
         dataset_size=sample_test, 
         file_reference=file_reference
     )
-
-    logging.info("Generated real off-targets.")
+    logger.info("Generated real off-targets for the test set.")
 
     ##################
     # write dataset #
@@ -350,7 +420,7 @@ def main():
     validation_dataset.to_csv(file_validation)
     file_test = os.path.join(config["dir_output"], f"{dataset_name}_test.csv")
     test_dataset.to_csv(file_test)
-    logging.info(f"Dataset created and stored at: \n\t - {file_train},\n\t - {file_validation}, \n\t - {file_test}.")
+    logger.info(f"Dataset created and stored at: \n\t - {file_train},\n\t - {file_validation}, \n\t - {file_test}.")
     # plot distributions of the ground truths
     plt.figure(3)
     train_dataset["Source"] = "Train"
@@ -369,7 +439,7 @@ def main():
     plt.title("Number Mismatches distributions")
     plt.savefig(os.path.join(plots_dir,"Number_mismatches_distribution.pdf"))
     
-    logging.info(f"Computational time: {time.time() - start} (off-targets generation: {time.time() - start_2})")
+    logger.info(f"Computational time: {time.time() - start} (off-targets generation: {time.time() - start_2})")
     del oligo_database_train
     del oligo_database_validation
     del oligo_database_test

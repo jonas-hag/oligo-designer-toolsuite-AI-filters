@@ -19,8 +19,8 @@ source_params:
     taxon: vertebrate_mammalian # optional: taxon of the species we are intereste, only for source: ncbi
     annotation_release: current # optional: release number of provided annotation, leave empty if unknown
     genome_assembly:
-precalculated_annotation_path: data/hybridization_probability/output_genomic_region_generator_ncbi_new/annotation/
-precalculated_annotation_file: annotation_source-NCBI_species-Homo_sapiens_annotation_release-110_genome_assemly-GRCh38.fna
+precalculated_annotation_path: # data/hybridization_probability/output_genomic_region_generator_ncbi_new/annotation/
+precalculated_annotation_file: # annotation_source-NCBI_species-Homo_sapiens_annotation_release-110_genome_assemly-GRCh38.fna
 genomic_regions:
   gene: true
   exon: false

@@ -1,0 +1,27 @@
+n_jobs: 16  # number of available CPUs (if None the maximum number of CPUs will be used)
+seed: 547389
+nupack_cache: 8.0
+
+######### only for custom source ##########
+source: custom # required: indicate that own annotation should be used
+source_params:
+    file_annotation: /home/haicu/jonas.hagenberg/projects/odt-ai/01_data/GCF_000001405.40_GRCh38.p14_genomic.gtf
+    file_sequence: /home/haicu/jonas.hagenberg/projects/odt-ai/01_data/GCF_000001405.40_GRCh38.p14_genomic.fna
+    files_source: NCBI
+    species: Homo_sapiens # optional: species of provid ed annotation, leave empty if unknown
+    taxon: vertebrate_mammalian # optional: taxon of the species we are intereste, only for source: ncbi
+    annotation_release: GCF_000001405.40-RS_2025_08 # optional: release number of provided annotation, leave empty if unknown
+    genome_assembly:
+genomic_regions:
+  gene: true
+  exon: false
+  exon_exon_junction: false
+  cds: false
+  intron: false
+  intergenic: true
+
+######### alignment method ##########
+alignment_method: bowtie
+search_parameters:
+  -v: 3
+hit_parameters:

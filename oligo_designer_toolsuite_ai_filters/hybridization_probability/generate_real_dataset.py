@@ -9,6 +9,7 @@ from typing import Tuple, Union, List
 import logging
 from datetime import datetime
 import iteration_utilities
+from collections import Counter
 
 from oligo_designer_toolsuite.sequence_generator import OligoSequenceGenerator
 from oligo_designer_toolsuite.database import OligoDatabase, ReferenceDatabase
@@ -67,7 +68,7 @@ def generate_off_targets_region(
     filtered_oligo_database = copy.deepcopy(oligo_database)
     oligo_ids = filtered_oligo_database.get_oligoid_list()
     oligo_id_sample = random.sample(population=oligo_ids, k=min(sampled_oligos_per_region, len(oligo_ids)))
-    filtered_oligo_database.filter_database_by_oligo(remove_region=False, oligo_ids=oligo_id_sample)
+    # filtered_oligo_database.filter_database_by_oligo(remove_region=False, oligo_ids=oligo_id_sample)
 
     table_hits = alignment_method._run_filter(
         sequence_type='oligo',
@@ -86,6 +87,11 @@ def generate_off_targets_region(
     gapped_queries, gapped_references = alignment_method._add_alignment_gaps(
         table_hits=table_hits, queries=queries, references=references
     )
+
+    # check how many off-target hits an oligo has
+    # queries contains the oligo, one element for every off-target found
+    print(region_id)
+    print(Counter(queries))
 
     # create the output
     off_targets = []
@@ -112,21 +118,8 @@ def generate_off_targets(
     number_regions = oligo_database.database.keys()
     sampled_oligos_per_region = int(ceil(dataset_size / (5 * len(number_regions))))
 
-    # off_target_regions = joblib.Parallel(n_jobs=config["n_jobs"])(
-    #     joblib.delayed(generate_off_targets_region)(
-    #         oligo_database=oligo_database,
-    #         alignment_method=alignment_method,
-    #         file_index=file_index,
-    #         region_id=region_id,
-    #         file_reference=file_reference,
-    #         sampled_oligos_per_region=sampled_oligos_per_region
-    #     )
-    #     for region_id in oligo_database.database.keys()
-    # )
-
-    off_target_regions = []
-    for region_id in oligo_database.database.keys():
-        results = generate_off_targets_region(
+    off_target_regions = joblib.Parallel(n_jobs=config["n_jobs"])(
+        joblib.delayed(generate_off_targets_region)(
             oligo_database=oligo_database,
             alignment_method=alignment_method,
             file_index=file_index,
@@ -134,7 +127,20 @@ def generate_off_targets(
             file_reference=file_reference,
             sampled_oligos_per_region=sampled_oligos_per_region
         )
-        off_target_regions.append(results)
+        for region_id in oligo_database.database.keys()
+    )
+
+    # off_target_regions = []
+    # for region_id in oligo_database.database.keys():
+    #     results = generate_off_targets_region(
+    #         oligo_database=oligo_database,
+    #         alignment_method=alignment_method,
+    #         file_index=file_index,
+    #         region_id=region_id,
+    #         file_reference=file_reference,
+    #         sampled_oligos_per_region=sampled_oligos_per_region
+    #     )
+    #     off_target_regions.append(results)
 
     # flatten the list
     off_target_regions = [off_target for region in off_target_regions for off_target in region]

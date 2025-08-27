@@ -1,0 +1,37 @@
+dir_output : data/hybridization_probability/datasets_test # path to the folder where the dataset will be stored
+oligo_length_min: 51  # minimum length of the oligos
+oligo_length_max: 55  # maximum length of the oligos
+splits_size: [0.3333, 0.3333, 0.3333]  # train , validation and test splits
+file_genes: data/hybridization_probability/regions/custom_6.csv  # path to the file containing the desired genes
+dataset_size: 10000 # total number of entries of the dataset
+oligos_per_region: 1000 # maximun number of oligo per region for which the off targets are searched
+n_jobs: 14  # number of available CPUs (if None the maximum number of CPUs will be used)
+seed: 547389
+nupack_cache: 8.0
+
+######### only for custom source ##########
+source: custom # required: indicate that own annotation should be used
+source_params:
+    file_annotation: data/hybridization_probability/output_genomic_region_generator_ncbi_for_hpc/annotation/GCF_000001405.40_GRCh38.p14_genomic.gtf # data/hybridization_probability/output_genomic_region_generator_ncbi/annotation/GCF_000001405.40_GRCh38.p14_genomic.gtf # required: GTF file with gene annotation
+    file_sequence: data/hybridization_probability/output_genomic_region_generator_ncbi_for_hpc/annotation/GCF_000001405.40_GRCh38.p14_genomic.fna # data/hybridization_probability/output_genomic_region_generator_ncbi/annotation/GCF_000001405.40_GRCh38.p14_genomic.fna # required: FASTA file with genome sequence
+    files_source: NCBI # optional: original source of the genomic files
+    species: Homo_sapiens # optional: species of provid ed annotation, leave empty if unknown
+    taxon: vertebrate_mammalian # optional: taxon of the species we are intereste, only for source: ncbi
+    annotation_release: GCF_000001405.40-RS_2025_08 # optional: release number of provided annotation, leave empty if unknown
+    genome_assembly: # optional: genome assembly of provided annotation, leave empty if unknown
+precalculated_annotation_path: #data/hybridization_probability/output_genomic_region_generator_ncbi_new/annotation/
+precalculated_annotation_file: #annotation_source-NCBI_species-Homo_sapiens_annotation_release-110_genome_assemly-GRCh38.fna
+genomic_regions:
+  gene: true
+  exon: false
+  exon_exon_junction: false
+  cds: false
+  intron: false
+  intergenic: true
+
+######### alignment method ##########
+alignment_method: bowtie
+search_parameters:
+  -v: 3
+hit_parameters:
+index_path: /lustre/groups/aiconsultants/projects/odt-ai/oligo-designer-toolsuite-AI-filters/data/hybridization_probability/bowtie_filter_hpc/bowtie_filter/db_reference_bowtie_filter.fna

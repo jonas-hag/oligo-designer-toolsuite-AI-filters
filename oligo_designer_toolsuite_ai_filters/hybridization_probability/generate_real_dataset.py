@@ -32,6 +32,7 @@ import numpy as np
 
 from  oligo_designer_toolsuite_ai_filters.hybridization_probability.generate_artificial_dataset import split_genes_stratified, generate_datasamples, generate_dataset, sample_temperatures
 
+from pathlib import Path
 
 base_pair = {'A':'T', 'T':'A', 'C':'G', 'G':'C', 'a':'T', 't':'A', 'c':'G', 'g':'C'}
 
@@ -62,7 +63,9 @@ def generate_off_targets_region(
 
     # downsample the oligo_database for better efficiency
     # assume 5 off-target hits per oligo
-    print(f"start off target region generation for {region_id}")
+    output_file = Path(f"/lustre/groups/aiconsultants/projects/odt-ai/oligo-designer-toolsuite-AI-filters/debugging/debug_odt-ai_joblib_{region_id}.txt")
+    with open(output_file, 'a') as file:
+        file.write(f"start off target region generation for {region_id}")
     number_regions = oligo_database.database.keys()
 
     # run the filter
@@ -71,7 +74,8 @@ def generate_off_targets_region(
     oligo_id_sample = random.sample(population=oligo_ids, k=min(sampled_oligos_per_region, len(oligo_ids)))
     # filtered_oligo_database.filter_database_by_oligo(remove_region=False, oligo_ids=oligo_id_sample)
 
-    print("start run_filter")
+    with open(output_file, 'a') as file:
+        file.write("start run_filter")
     table_hits = alignment_method._run_filter(
         sequence_type='oligo',
         region_id=region_id,
@@ -82,28 +86,35 @@ def generate_off_targets_region(
     )
 
     # add the gaps
-    print("start get references")
+    with open(output_file, 'a') as file:
+        file.write("start get_references")
     references = alignment_method._get_references(table_hits, file_reference, region_id)
-    print("start get queries")
+    with open(output_file, 'a') as file:
+        file.write("start get_queries")
     queries = alignment_method._get_queries(filtered_oligo_database, table_hits, region_id, 'oligo')
     unique_queries = list(set(queries))
     # align the references and queries by adding gaps
-    print("start add_alignment_gaps")
+    with open(output_file, 'a') as file:
+        file.write("start add_alignment_gaps")
     gapped_queries, gapped_references = alignment_method._add_alignment_gaps(
         table_hits=table_hits, queries=queries, references=references
     )
 
     # check how many off-target hits an oligo has
     # queries contains the oligo, one element for every off-target found
-    print(region_id)
-    print(Counter(queries))
+    # print(region_id)
+    # print(Counter(queries))
+    with open(output_file, 'a') as file:
+        file.write(f"number of queries: {Counter(queries)}")
 
     # create the output
     off_targets = []
-    print("start temp calculating for on-targets")
+    with open(output_file, 'a') as file:
+        file.write("start temp calculating for on-targets")
     for query in unique_queries:
         off_targets.extend(generate_datasamples(query, query, query, query, sample_temperatures(6),0))
-    print("start temp calculating for off-targets")
+    with open(output_file, 'a') as file:
+        file.write("start temp calculating for off-targets")
     for query, reference, gapped_query, gapped_reference in zip(queries, references, gapped_queries, gapped_references):
         n_mismatches = sum(q != r for q, r in zip(gapped_query, gapped_reference))
         off_targets.extend(generate_datasamples(query, reference, gapped_query, gapped_reference, sample_temperatures(2), n_mismatches))

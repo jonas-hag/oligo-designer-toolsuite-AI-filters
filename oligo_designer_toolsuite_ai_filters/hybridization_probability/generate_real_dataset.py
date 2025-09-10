@@ -62,6 +62,7 @@ def generate_off_targets_region(
 
     # downsample the oligo_database for better efficiency
     # assume 5 off-target hits per oligo
+    print(f"start off target region generation for {region_id}")
     number_regions = oligo_database.database.keys()
 
     # run the filter
@@ -70,6 +71,7 @@ def generate_off_targets_region(
     oligo_id_sample = random.sample(population=oligo_ids, k=min(sampled_oligos_per_region, len(oligo_ids)))
     # filtered_oligo_database.filter_database_by_oligo(remove_region=False, oligo_ids=oligo_id_sample)
 
+    print("start run_filter")
     table_hits = alignment_method._run_filter(
         sequence_type='oligo',
         region_id=region_id,
@@ -80,10 +82,13 @@ def generate_off_targets_region(
     )
 
     # add the gaps
+    print("start get references")
     references = alignment_method._get_references(table_hits, file_reference, region_id)
+    print("start get queries")
     queries = alignment_method._get_queries(filtered_oligo_database, table_hits, region_id, 'oligo')
     unique_queries = list(set(queries))
     # align the references and queries by adding gaps
+    print("start add_alignment_gaps")
     gapped_queries, gapped_references = alignment_method._add_alignment_gaps(
         table_hits=table_hits, queries=queries, references=references
     )
@@ -95,8 +100,10 @@ def generate_off_targets_region(
 
     # create the output
     off_targets = []
+    print("start temp calculating for on-targets")
     for query in unique_queries:
         off_targets.extend(generate_datasamples(query, query, query, query, sample_temperatures(6),0))
+    print("start temp calculating for off-targets")
     for query, reference, gapped_query, gapped_reference in zip(queries, references, gapped_queries, gapped_references):
         n_mismatches = sum(q != r for q, r in zip(gapped_query, gapped_reference))
         off_targets.extend(generate_datasamples(query, reference, gapped_query, gapped_reference, sample_temperatures(2), n_mismatches))

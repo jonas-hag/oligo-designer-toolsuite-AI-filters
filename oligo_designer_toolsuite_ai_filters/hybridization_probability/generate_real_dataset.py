@@ -73,12 +73,12 @@ def generate_off_targets_region(
     with open(output_file, 'a') as file:
         file.write(f"start off target region generation for {region_id}\n")
         file.write(print_mem_usage())
-    number_regions = oligo_database.database.keys()
+    # number_regions = oligo_database.database.keys()
 
     # run the filter
     filtered_oligo_database = copy.deepcopy(oligo_database)
-    oligo_ids = filtered_oligo_database.get_oligoid_list()
-    oligo_id_sample = random.sample(population=oligo_ids, k=min(sampled_oligos_per_region, len(oligo_ids)))
+    # oligo_ids = filtered_oligo_database.get_oligoid_list()
+    # oligo_id_sample = random.sample(population=oligo_ids, k=min(sampled_oligos_per_region, len(oligo_ids)))
     # filtered_oligo_database.filter_database_by_oligo(remove_region=False, oligo_ids=oligo_id_sample)
 
     with open(output_file, 'a') as file:

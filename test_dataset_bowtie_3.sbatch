@@ -2,9 +2,9 @@
 
 #SBATCH --partition=cpu_p
 #SBATCH --qos=cpu_normal
-#SBATCH --mem=50G
+#SBATCH --mem=25G
 #SBATCH --cpus-per-task=8
-#SBATCH --time=06:00:00
+#SBATCH --time=02:00:00
 #SBATCH --ntasks=1
 
 #SBATCH --job-name=dataset_bowtie_test_3

@@ -290,7 +290,7 @@ def main():
     # generate the oligo sequences #
     ################################
 
-    dir_output = "output_odt_real_" + str(time.time())
+    dir_output = "/localscratch/jonas.hagenberg/output_odt_real_" + str(time.time())
 
     if config["precalculated_annotation_path"] is not None and config["precalculated_annotation_file"] is not None:
         files_fasta = [

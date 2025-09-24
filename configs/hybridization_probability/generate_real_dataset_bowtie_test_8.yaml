@@ -1,10 +1,10 @@
 dir_output : data/hybridization_probability/datasets_test # path to the folder where the dataset will be stored
 oligo_length_min: 15  # minimum length of the oligos
-oligo_length_max: 25  # maximum length of the oligos
+oligo_length_max: 100  # maximum length of the oligos
 splits_size: [0.3333, 0.3333, 0.3333]  # train , validation and test splits
 file_genes: data/hybridization_probability/regions/custom_12.csv  # path to the file containing the desired genes
-dataset_size: 20000 # total number of entries of the dataset
-oligos_per_region: 350 # maximum number of oligo per region for which the off targets are searched -> assume 5 off-targets per oligo and calculate according to this
+dataset_size: 40000 # total number of entries of the dataset
+oligos_per_region: 700 # maximum number of oligo per region for which the off targets are searched -> assume 5 off-targets per oligo and calculate according to this
 n_jobs: 8  # number of available CPUs (if None the maximum number of CPUs will be used)
 seed: 547389
 nupack_cache: 8.0

@@ -3,12 +3,10 @@ import shutil
 import argparse
 import yaml
 import random
-import copy
 import time
 from typing import Tuple, Union, List
 import logging
-from datetime import datetime
-import iteration_utilities
+from datetime import datetime, timedelta
 from collections import Counter
 
 from oligo_designer_toolsuite.sequence_generator import OligoSequenceGenerator
@@ -457,7 +455,10 @@ def main():
     plt.title("Number Mismatches distributions")
     plt.savefig(os.path.join(plots_dir,"Number_mismatches_distribution.pdf"))
     
-    logger.info(f"Computational time: {time.time() - start} (off-targets generation: {time.time() - start_2})")
+    end = time.time()
+    elapsed_total = end - start
+    elapsed_off_targets = end - start_2
+    logger.info(f"Computational time: {str(timedelta(seconds=int(elapsed_total)))} (off-targets generation: {str(timedelta(seconds=int(elapsed_off_targets)))})")
     del oligo_database_train
     del oligo_database_validation
     del oligo_database_test

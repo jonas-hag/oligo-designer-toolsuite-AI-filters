@@ -19,7 +19,7 @@ source_params:
     taxon: vertebrate_mammalian # optional: taxon of the species we are intereste, only for source: ncbi
     annotation_release: GCF_000001405.40-RS_2025_08 # optional: release number of provided annotation, leave empty if unknown
     genome_assembly: # optional: genome assembly of provided annotation, leave empty if unknown
-precalculated_annotation_path: output_odt_real_1758010914.122287/annotation
+precalculated_annotation_path: /lustre/groups/aiconsultants/projects/odt-ai/oligo-designer-toolsuite-AI-filters/output_odt_real_1757923915.7920792/annotation
 precalculated_annotation_file: annotation_source-NCBI_species-Homo_sapiens_annotation_release-GCF_000001405.40-RS_2025_08_genome_assemly-unknown.fna
 genomic_regions:
   gene: true

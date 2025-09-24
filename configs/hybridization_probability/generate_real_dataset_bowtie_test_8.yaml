@@ -35,4 +35,4 @@ search_parameters:
   -v: 3 # allow up to 3 missmatches
   -k: 10 # just include 10 alignments
 hit_parameters:
-index_path: /Users/jonas.hagenberg/Documents/Projects/oligo_designer/forks/oligo-designer-toolsuite-AI-filters/data/hybridization_probability/bowtie_filter_hpc/bowtie_filter/db_reference_bowtie_filter.fna
+index_path: /lustre/groups/aiconsultants/projects/odt-ai/oligo-designer-toolsuite-AI-filters/data/hybridization_probability/bowtie_filter_hpc/bowtie_filter/db_reference_bowtie_filter.fna

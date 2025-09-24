@@ -47,8 +47,7 @@ def generate_off_targets_region(
         oligo_database: OligoDatabase, 
         alignment_method: BlastNFilter, 
         file_index: str, region_id: str, 
-        file_reference: str,
-        sampled_oligos_per_region: int
+        file_reference: str
     ):
     """Return a list of all the retrived off target sites in the following format:
 
@@ -63,23 +62,14 @@ def generate_off_targets_region(
     :type region_id: str
     :param file_reference: _description_
     :type file_reference: str
-    :param sampled_oligos_per_region: how many oligos to sample from each region before running the filter
-    :type sampled_oligos_per_region: int
     """
 
-    # downsample the oligo_database for better efficiency
-    # assume 5 off-target hits per oligo
     output_file = Path(f"/lustre/groups/aiconsultants/projects/odt-ai/oligo-designer-toolsuite-AI-filters/debugging/debug_odt-ai_joblib_{region_id}.txt")
+    # output_file = Path(f"debugging/debug_odt-ai_joblib_{region_id}.txt")
     with open(output_file, 'a') as file:
+        file.write(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}\n")
         file.write(f"start off target region generation for {region_id}\n")
         file.write(print_mem_usage())
-    # number_regions = oligo_database.database.keys()
-
-    # run the filter
-    filtered_oligo_database = copy.deepcopy(oligo_database)
-    # oligo_ids = filtered_oligo_database.get_oligoid_list()
-    # oligo_id_sample = random.sample(population=oligo_ids, k=min(sampled_oligos_per_region, len(oligo_ids)))
-    # filtered_oligo_database.filter_database_by_oligo(remove_region=False, oligo_ids=oligo_id_sample)
 
     with open(output_file, 'a') as file:
         file.write("start run_filter\n")
@@ -87,7 +77,7 @@ def generate_off_targets_region(
     table_hits = alignment_method._run_filter(
         sequence_type='oligo',
         region_id=region_id,
-        oligo_database=filtered_oligo_database,
+        oligo_database=oligo_database,
         file_reference=file_index,
         consider_hits_from_input_region=True,
         mode=2
@@ -101,7 +91,7 @@ def generate_off_targets_region(
     with open(output_file, 'a') as file:
         file.write("start get_queries\n")
         file.write(print_mem_usage())
-    queries = alignment_method._get_queries(filtered_oligo_database, table_hits, region_id, 'oligo')
+    queries = alignment_method._get_queries(oligo_database, table_hits, region_id, 'oligo')
     unique_queries = list(set(queries))
     # align the references and queries by adding gaps
     with open(output_file, 'a') as file:
@@ -113,25 +103,26 @@ def generate_off_targets_region(
 
     # check how many off-target hits an oligo has
     # queries contains the oligo, one element for every off-target found
-    # print(region_id)
-    # print(Counter(queries))
     with open(output_file, 'a') as file:
         file.write(f"number of queries: {Counter(queries)}\n")
         file.write(print_mem_usage())
 
     # create the output
     off_targets = []
+    sampled_temperatures = []
     with open(output_file, 'a') as file:
         file.write("start temp calculating for on-targets\n")
         file.write(print_mem_usage())
     for query in unique_queries:
-        off_targets.extend(generate_datasamples(query, query, query, query, sample_temperatures(6),0))
+        temperatures = sample_temperatures(6)
+        sampled_temperatures.append(temperatures)
+        off_targets.extend(generate_datasamples(query, query, query, query, temperatures, 0))
     with open(output_file, 'a') as file:
         file.write("start temp calculating for off-targets\n")
         file.write(print_mem_usage())
-    for query, reference, gapped_query, gapped_reference in zip(queries, references, gapped_queries, gapped_references):
+    for query, reference, gapped_query, gapped_reference, temperatures in zip(queries, references, gapped_queries, gapped_references, sampled_temperatures):
         n_mismatches = sum(q != r for q, r in zip(gapped_query, gapped_reference))
-        off_targets.extend(generate_datasamples(query, reference, gapped_query, gapped_reference, sample_temperatures(2), n_mismatches))
+        off_targets.extend(generate_datasamples(query, reference, gapped_query, gapped_reference, temperatures, n_mismatches))
     return off_targets
 
 
@@ -141,14 +132,8 @@ def generate_off_targets(
         file_index: str, 
         config: dict, 
         dataset_size: int, 
-        file_reference: str
+        file_reference: str,
     ):
-
-    # the oligo_database will be downsampled for better efficiency
-    # for this, we need to calculate how many oligos we want to sample from each region
-    # assume 5 off-target hits per oligo
-    number_regions = oligo_database.database.keys()
-    sampled_oligos_per_region = int(ceil(dataset_size / (5 * len(number_regions))))
 
     off_target_regions = joblib.Parallel(n_jobs=config["n_jobs"])(
         joblib.delayed(generate_off_targets_region)(
@@ -156,8 +141,7 @@ def generate_off_targets(
             alignment_method=alignment_method,
             file_index=file_index,
             region_id=region_id,
-            file_reference=file_reference,
-            sampled_oligos_per_region=sampled_oligos_per_region
+            file_reference=file_reference
         )
         for region_id in oligo_database.database.keys()
     )
@@ -269,7 +253,6 @@ def main():
     plots_dir = os.path.join(config["dir_output"], f"{dataset_name}_plots")
     os.makedirs(plots_dir, exist_ok=True)
     # nupack run
-    # nupack.config.threads = config["n_jobs"] # use all cores
     nupack.config.cache = config["nupack_cache"]
     
 
@@ -290,7 +273,8 @@ def main():
     # generate the oligo sequences #
     ################################
 
-    dir_output = "/localscratch/jonas.hagenberg/output_odt_real_" + str(time.time())
+    # dir_output = "/localscratch/jonas.hagenberg/output_odt_real_" + str(time.time())
+    dir_output = "output_odt_real_" + str(time.time())
 
     if config["precalculated_annotation_path"] is not None and config["precalculated_annotation_file"] is not None:
         files_fasta = [
@@ -376,7 +360,6 @@ def main():
             filename=f"db_reference",
         )
     logger.info("Generated reference database.")
-    # log database information
     
 
     ################################################################
@@ -420,9 +403,8 @@ def main():
         file_index = file_index, 
         config=config, 
         dataset_size=sample_train, 
-        file_reference=file_reference
+        file_reference=file_reference,
     )
-    logger.info("Generated real off-targets for the training set.")
 
     # validation
     logger.info("Generating real off-targets for the validation set.")
@@ -432,9 +414,8 @@ def main():
         file_index = file_index, 
         config=config,
         dataset_size=sample_validation, 
-        file_reference=file_reference
+        file_reference=file_reference,
     )
-    logger.info("Generated real off-targets for the validation set.")
 
     # test
     logger.info("Generating real off-targets for the test set.")
@@ -444,9 +425,8 @@ def main():
         file_index = file_index, 
         config=config,
         dataset_size=sample_test, 
-        file_reference=file_reference
+        file_reference=file_reference,
     )
-    logger.info("Generated real off-targets for the test set.")
 
     ##################
     # write dataset #

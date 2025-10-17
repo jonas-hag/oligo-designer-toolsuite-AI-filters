@@ -5,6 +5,8 @@ import time
 from typing import Union, List
 import logging
 from datetime import datetime, timedelta
+import subprocess
+import importlib.resources as resources
 
 from oligo_designer_toolsuite.sequence_generator import OligoSequenceGenerator
 from oligo_designer_toolsuite.database import OligoDatabase, ReferenceDatabase
@@ -48,6 +50,20 @@ def generate_oligos(n_jobs: int, dir_output: str, regions: list, oligo_fasta_fil
     oligo_database = property_filter.apply(oligo_database=oligo_database, n_jobs=n_jobs, sequence_type="oligo")
     
     return oligo_database
+
+def filter_oligos(oligo_fasta_file: str):
+    """
+    Implement the SoftMaskedSequenceFilter and HardMaskedSequenceFilter with awk/regex and directly work on the FASTA files,
+    as ODT is currently not memory-efficient enough to work with such large files.
+    """
+
+    oligo_fasta_file_filtered = oligo_fasta_file.replace(".fna", "_filtered.fna")
+    script_path = resources.files("oligo-designer-toolsuite-AI-filters.scripts") / "hard_soft_masked_sequence_filter.sh"
+    subprocess.run(["bash", str(script_path), oligo_fasta_file, oligo_fasta_file_filtered], check=True)
+    os.remove(oligo_fasta_file)
+
+    return oligo_fasta_file_filtered
+
 
 def main():
     """
@@ -121,7 +137,10 @@ def main():
         overwrite=False,
         n_jobs=args.n_jobs,
     )
+    logger.info(oligo_fasta_file_1)
+    logger.info(oligo_fasta_file_2)
     oligo_fasta_files = oligo_fasta_file_1 + oligo_fasta_file_2
+    logger.info(oligo_fasta_files)
     logger.info("sequences 51-100 generated")
     logger.info(print_mem_usage())
 

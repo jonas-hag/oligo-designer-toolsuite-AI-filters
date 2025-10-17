@@ -57,7 +57,7 @@ def main():
     start = time.time()
     parser = argparse.ArgumentParser(description="Test memory consumption of oligo databases")
     parser.add_argument("--region", action="store", dest="region", default="ABCA13")
-    parser.add_argument("--n_jobs", action="store", dest="n_jobs", default=1)
+    parser.add_argument("--n_jobs", action="store", dest="n_jobs", default=1, type=int)
     args = parser.parse_args()
 
     annotation_path = "/lustre/groups/aiconsultants/projects/odt-ai/oligo-designer-toolsuite-AI-filters/output_odt_real_1757923915.7920792/annotation"

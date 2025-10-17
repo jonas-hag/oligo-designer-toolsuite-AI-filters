@@ -17,7 +17,7 @@ def print_mem_usage():
     mem = process.memory_info().rss / 10**9  # in GB
     return f"Memory usage: {mem:.2f} GB\n"
 
-def generate_oligos(n_jobs: int, dir_output: str, regions: list, oligo_fasta_file: Union[str, List[str]]):
+def generate_oligos(n_jobs: int, dir_output: str, regions: list, oligo_fasta_file: Union[str, List[str]], logger):
     """Generate the oligo sequences.
     """
 
@@ -30,12 +30,16 @@ def generate_oligos(n_jobs: int, dir_output: str, regions: list, oligo_fasta_fil
         database_name=f"oligo_database_{str(time.time())}",
         dir_output=dir_output,
     )
+
     oligo_database.load_database_from_fasta(
         files_fasta=oligo_fasta_file,
         sequence_type="oligo",
         region_ids=regions,
         database_overwrite = True,
     )
+
+    logger.info("Oligo database loaded into memory")
+    logger.info(print_mem_usage())
 
     # Property filtering
     masked_seqeunces = HardMaskedSequenceFilter()
@@ -121,8 +125,8 @@ def main():
     logger.info("sequences 51-100 generated")
     logger.info(print_mem_usage())
 
-    logger.info("Generating Oligo sequences.")
-    oligo_database = generate_oligos(args.n_jobs, dir_output, args.region, oligo_fasta_files)
+    logger.info("load oligo sequences in DB and filter them")
+    oligo_database = generate_oligos(args.n_jobs, dir_output, args.region, oligo_fasta_files, logger)
     logger.info("oligo data base generated")
     logger.info(print_mem_usage())
     

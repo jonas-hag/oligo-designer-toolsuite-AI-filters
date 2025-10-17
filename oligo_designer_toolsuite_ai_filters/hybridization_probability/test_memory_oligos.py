@@ -77,6 +77,8 @@ def main():
     )
     logger = logging.getLogger("memory test")
     logger.info("startup")
+    logger.info(f"region: {args.region}")
+    logger.info(f"n_jobs: {args.n_jobs}")
     logger.info(print_mem_usage())
 
 

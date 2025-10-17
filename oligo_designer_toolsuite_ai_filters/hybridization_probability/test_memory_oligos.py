@@ -145,7 +145,7 @@ def main():
     logger.info(print_mem_usage())
 
     logger.info("load oligo sequences in DB and filter them")
-    oligo_database = generate_oligos(args.n_jobs, dir_output, args.region, oligo_fasta_files, logger)
+    oligo_database = generate_oligos(args.n_jobs, dir_output, args.region, oligo_fasta_files[0], logger)
     logger.info("oligo data base generated")
     logger.info(print_mem_usage())
     

@@ -58,11 +58,25 @@ def filter_oligos(oligo_fasta_file: str):
     """
 
     oligo_fasta_file_filtered = oligo_fasta_file.replace(".fna", "_filtered.fna")
-    script_path = resources.files("oligo-designer-toolsuite-AI-filters.scripts") / "hard_soft_masked_sequence_filter.sh"
-    subprocess.run(["bash", str(script_path), oligo_fasta_file, oligo_fasta_file_filtered], check=True)
-    os.remove(oligo_fasta_file)
-
-    return oligo_fasta_file_filtered
+    script_path = resources.files("oligo_designer_toolsuite_ai_filters") / "hybridization_probability" / "scripts" / "hard_soft_masked_sequence_filter.sh"
+    try:
+        completed = subprocess.run(
+            ["bash", str(script_path), oligo_fasta_file, oligo_fasta_file_filtered],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            shell=False,
+        )
+    except subprocess.CalledProcessError as e:
+        out = e.stdout or ""
+        err = e.stderr or ""
+        
+        print("Filter failed (rc={}):\nSTDOUT:\n{}\nSTDERR:\n{}".format(e.returncode, out, err))
+        raise
+    else:
+        os.remove(oligo_fasta_file)
+        return oligo_fasta_file_filtered
 
 
 def main():
@@ -106,8 +120,8 @@ def main():
     # generate the oligo sequences #
     ################################
 
-    # dir_output = "/localscratch/jonas.hagenberg/output_odt_real_" + str(time.time())
-    dir_output = "output_test_odt_memory_" + str(time.time())
+    dir_output = "/localscratch/jonas.hagenberg/output_odt_real_" + str(time.time())
+    # dir_output = "output_test_odt_memory_" + str(time.time())
     os.makedirs(dir_output, exist_ok=True)
 
     
@@ -120,7 +134,7 @@ def main():
     logger.info("start generating oligo sequences")
     oligo_sequences = OligoSequenceGenerator(dir_output=dir_output)
     
-    oligo_fasta_file_1 = oligo_sequences.create_sequences_sliding_window(
+    oligo_fasta_file = oligo_sequences.create_sequences_sliding_window(
         files_fasta_in=files_fasta,
         length_interval_sequences=(15, 50),
         region_ids=args.region,
@@ -129,7 +143,8 @@ def main():
     )
     logger.info("sequences 15-50 generated")
     logger.info(print_mem_usage())
-    oligo_fasta_file_2 = oligo_sequences.create_sequences_sliding_window(
+    # the second run appends the data to the same FASTA file
+    oligo_fasta_file = oligo_sequences.create_sequences_sliding_window(
         files_fasta_in=files_fasta,
         length_interval_sequences=(51, 100),
         region_ids=args.region,
@@ -137,16 +152,14 @@ def main():
         overwrite=False,
         n_jobs=args.n_jobs,
     )
-    logger.info(oligo_fasta_file_1)
-    logger.info(oligo_fasta_file_2)
-    oligo_fasta_files = oligo_fasta_file_1 + oligo_fasta_file_2
-    logger.info(oligo_fasta_files)
+    logger.info(oligo_fasta_file)
     logger.info("sequences 51-100 generated")
     logger.info(print_mem_usage())
 
-    logger.info("load oligo sequences in DB and filter them")
-    oligo_database = generate_oligos(args.n_jobs, dir_output, args.region, oligo_fasta_files[0], logger)
-    logger.info("oligo data base generated")
+    logger.info("filter oligos")
+    oligo_fasta_file_filtered = filter_oligos(oligo_fasta_file)
+    logger.info(oligo_fasta_file_filtered)
+    logger.info("oligos filtered")
     logger.info(print_mem_usage())
     
 

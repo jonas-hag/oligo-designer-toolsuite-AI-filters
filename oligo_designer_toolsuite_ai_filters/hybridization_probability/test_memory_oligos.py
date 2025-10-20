@@ -7,6 +7,8 @@ import logging
 from datetime import datetime, timedelta
 import subprocess
 import importlib.resources as resources
+import pandas as pd
+import numpy as np
 
 from oligo_designer_toolsuite.sequence_generator import OligoSequenceGenerator
 from oligo_designer_toolsuite.database import OligoDatabase, ReferenceDatabase
@@ -77,6 +79,70 @@ def filter_oligos(oligo_fasta_file: str):
     else:
         os.remove(oligo_fasta_file)
         return oligo_fasta_file_filtered
+    
+def determine_oligo_length(oligo_fasta_file: str):
+    """
+    Determine the oligo length by using awk.
+    """
+
+    oligo_fasta_file_length = oligo_fasta_file.replace(".fna", "_length.fna")
+    script_path = resources.files("oligo_designer_toolsuite_ai_filters") / "hybridization_probability" / "scripts" / "determine_oligo_length.sh"
+    try:
+        completed = subprocess.run(
+            ["bash", str(script_path), oligo_fasta_file, oligo_fasta_file_length],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            shell=False,
+        )
+    except subprocess.CalledProcessError as e:
+        out = e.stdout or ""
+        err = e.stderr or ""
+        
+        print("Filter failed (rc={}):\nSTDOUT:\n{}\nSTDERR:\n{}".format(e.returncode, out, err))
+        raise
+    else:
+        return oligo_fasta_file_length
+    
+def sample_oligos(oligo_fasta_file, oligo_fasta_file_length, sample_information, random_generator):
+    """
+    Read in the oligo length file, sample according to the sample_information and create a new FASTA file.
+    This is then read in as a oligo database. sample_information is a dict with the following structure:
+        - interval: interval_name (arbitrary)
+            - lower: lower bound (included in the interval)
+            - upper: upper bound (included in the interval)
+            - n: number of samples
+
+    """
+    length_information = pd.read_csv(oligo_fasta_file_length, names=["line_number", "length"])
+
+    index_with_header = []
+    for interval_name, interval_data in sample_information.items():
+        # only check even line numbers as they contain the sequence
+        temp_data = length_information[(length_information["line_number"] % 2 == 0) &
+                                       (length_information["length"] >= interval_data["lower"]) &
+                                       (length_information["length"] <= interval_data["upper"])]
+        sampled_data = temp_data.sample(n=interval_data["n"], random_state=random_generator)
+
+        # determine the line numbers of the sampled oligos and the line numbers
+        # of the FASTA headers
+        for row in sampled_data.itertuples():
+            index_with_header.extend([row.line_number - 1, row.line_number])
+    index_with_header.sort()
+
+    # write the sampled lines into a new FASTA file
+    oligo_fasta_file_sampled = oligo_fasta_file.replace(".fna", "_sampled.fna")
+    with open(oligo_fasta_file, "r") as infile:
+        with open(oligo_fasta_file_sampled, "w") as outfile:
+            for line_number, line in enumerate(infile):
+                # line_number is 0-based, index_with_header 1-based
+                if line_number + 1 in index_with_header:
+                    outfile.write(line)
+
+    os.remove(oligo_fasta_file)
+    os.remove(oligo_fasta_file_length)
+    return oligo_fasta_file_sampled
 
 
 def main():
@@ -97,6 +163,19 @@ def main():
     annotation_path = "/lustre/groups/aiconsultants/projects/odt-ai/oligo-designer-toolsuite-AI-filters/output_odt_real_1757923915.7920792/annotation"
     annotation_file = "annotation_source-NCBI_species-Homo_sapiens_annotation_release-GCF_000001405.40-RS_2025_08_genome_assemly-unknown.fna"
     
+    rng = np.random.default_rng(274390)
+
+    interval_config = {
+        "interval_1": {"lower": 15, "upper": 20, "n": 40},
+        "interval_2": {"lower": 21, "upper": 30, "n": 80},
+        "interval_3": {"lower": 31, "upper": 40, "n": 40},
+        "interval_4": {"lower": 41, "upper": 50, "n": 40},
+        "interval_5": {"lower": 51, "upper": 60, "n": 24},
+        "interval_6": {"lower": 61, "upper": 70, "n": 24},
+        "interval_7": {"lower": 71, "upper": 80, "n": 24},
+        "interval_8": {"lower": 81, "upper": 90, "n": 24},
+        "interval_9": {"lower": 91, "upper": 610, "n": 24},
+        }
 
     ##############
     # set logger #
@@ -161,6 +240,21 @@ def main():
     logger.info(oligo_fasta_file_filtered)
     logger.info("oligos filtered")
     logger.info(print_mem_usage())
+
+    logger.info("determine oligo length")
+    oligo_length = determine_oligo_length(oligo_fasta_file_filtered)
+    logger.info("oligo length determined")
+    logger.info(print_mem_usage())
+
+    logger.info("sample oligos")
+    oligo_file_sampled = sample_oligos(oligo_fasta_file_filtered, oligo_length, interval_config, rng)
+    logger.info("oligos sampled")
+    logger.info(print_mem_usage())
+
+    logger.info("move sampled data")
+    new_dir = os.makedirs("output_odt_real_" + str(time.time()))
+    shutil.copy(oligo_file_sampled, os.path.join(new_dir, os.path.basename(oligo_file_sampled)))
+    logger.info("sampled data moved")
     
 
     ################################
@@ -181,6 +275,13 @@ def main():
     logger.info(f"Computational time: {str(timedelta(seconds=int(elapsed_total)))}")
 
     shutil.rmtree(dir_output) #remove oligo designer toolsuite output
+
+# def main():
+#     rng = np.random.default_rng(274390)
+#     oligo_file = "ABCA13_small_mod.fna"
+#     oligo_file_filtered = filter_oligos(oligo_file)
+#     oligo_length = determine_oligo_length(oligo_file_filtered)
+#     oligo_file_sampled = sample_oligos(oligo_file_filtered, oligo_length, {"interval_1": {"lower": 15, "upper": 15, "n": 10}}, rng)
 
 if __name__ == "__main__":
     main()

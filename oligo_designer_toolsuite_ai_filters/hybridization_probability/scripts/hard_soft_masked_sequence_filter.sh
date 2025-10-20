@@ -1,5 +1,4 @@
 #!/bin/sh
-pwd
 awk -v pat='^(N|[^>].*[N[:lower:]])' '
   NR==1 { prev=$0; next }
   {

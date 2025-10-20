@@ -157,7 +157,7 @@ def main():
     logger.info(print_mem_usage())
 
     logger.info("filter oligos")
-    oligo_fasta_file_filtered = filter_oligos(oligo_fasta_file)
+    oligo_fasta_file_filtered = filter_oligos(oligo_fasta_file[0])
     logger.info(oligo_fasta_file_filtered)
     logger.info("oligos filtered")
     logger.info(print_mem_usage())

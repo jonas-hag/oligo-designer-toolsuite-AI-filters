@@ -171,17 +171,17 @@ def main():
     rng = np.random.default_rng(274390)
 
     interval_config_1 = {
-        "interval_1": {"lower": 15, "upper": 20, "n": 20}, # should be 40, adapted for testing
-        "interval_2": {"lower": 21, "upper": 30, "n": 20}, # should be 80, adapted for testing
-        #"interval_3": {"lower": 31, "upper": 40, "n": 80},
-        #"interval_4": {"lower": 41, "upper": 50, "n": 80},
+        "interval_1": {"lower": 15, "upper": 20, "n": 40},
+        "interval_2": {"lower": 21, "upper": 30, "n": 80},
+        "interval_3": {"lower": 31, "upper": 40, "n": 80},
+        "interval_4": {"lower": 41, "upper": 50, "n": 80},
         }
     
     interval_config_2 = {
-        #"interval_5": {"lower": 51, "upper": 60, "n": 24},
-        #"interval_6": {"lower": 61, "upper": 70, "n": 24},
-        #"interval_7": {"lower": 71, "upper": 80, "n": 24},
-        #"interval_8": {"lower": 81, "upper": 90, "n": 24},
+        "interval_5": {"lower": 51, "upper": 60, "n": 24},
+        "interval_6": {"lower": 61, "upper": 70, "n": 24},
+        "interval_7": {"lower": 71, "upper": 80, "n": 24},
+        "interval_8": {"lower": 81, "upper": 90, "n": 24},
         "interval_9": {"lower": 91, "upper": 100, "n": 24},
         }
 

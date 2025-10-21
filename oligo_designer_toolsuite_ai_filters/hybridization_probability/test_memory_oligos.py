@@ -239,7 +239,7 @@ def main():
         files_fasta_in=files_fasta,
         length_interval_sequences=(51, 100),
         region_ids=args.region,
-        stride=2,
+        stride=1,
         n_jobs=args.n_jobs,
     )
     logger.info(oligo_fasta_file_2)

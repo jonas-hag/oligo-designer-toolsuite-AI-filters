@@ -252,7 +252,8 @@ def main():
     logger.info(print_mem_usage())
 
     logger.info("move sampled data")
-    new_dir = os.makedirs("output_odt_real_" + str(time.time()))
+    new_dir = "output_odt_real_" + str(time.time())
+    os.makedirs(new_dir)
     shutil.copy(oligo_file_sampled, os.path.join(new_dir, os.path.basename(oligo_file_sampled)))
     logger.info("sampled data moved")
     
@@ -282,6 +283,7 @@ def main():
 #     oligo_file_filtered = filter_oligos(oligo_file)
 #     oligo_length = determine_oligo_length(oligo_file_filtered)
 #     oligo_file_sampled = sample_oligos(oligo_file_filtered, oligo_length, {"interval_1": {"lower": 15, "upper": 15, "n": 10}}, rng)
+#     print(oligo_file_sampled)
 
 if __name__ == "__main__":
     main()

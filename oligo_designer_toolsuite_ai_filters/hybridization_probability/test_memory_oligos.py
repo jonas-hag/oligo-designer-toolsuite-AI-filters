@@ -124,8 +124,8 @@ def sample_oligos(oligo_fasta_file, oligo_fasta_file_length, sample_information,
                                        (length_information["length"] >= interval_data["lower"]) &
                                        (length_information["length"] <= interval_data["upper"])]
         if temp_data.shape[0] < interval_data["n"]:
-            logger.warning(f"The interval {interval_data["lower"]} >= x <= {interval_data["upper"]} "\
-                           f"only has {temp_data.shape[0]} oligos instead of {interval_data["n"]}")
+            logger.warning(f"The interval {interval_data['lower']} >= x <= {interval_data['upper']} "\
+                           f"only has {temp_data.shape[0]} oligos instead of {interval_data['n']}")
             sampled_data = temp_data
         else:
             sampled_data = temp_data.sample(n=interval_data["n"], random_state=random_generator)

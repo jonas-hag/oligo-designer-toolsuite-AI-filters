@@ -1,0 +1,50 @@
+storage_dir : data/hybridization_probability/real_dataset_sampled_oligos # path to the folder where the dataset will be stored
+# oligo_length_min: 15  # minimum length of the oligos;  currently not used
+# oligo_length_max: 100  # maximum length of the oligos; currently not used
+file_genes: data/hybridization_probability/regions/custom_3.csv  # path to the file containing the desired genes
+n_jobs: 4  # number of available CPUs (if None the maximum number of CPUs will be used)
+seed: 547389
+
+# genome data source
+annotation_path: /lustre/groups/aiconsultants/projects/odt-ai/oligo-designer-toolsuite-AI-filters/output_odt_real_1757923915.7920792/annotation
+annotation_file: annotation_source-NCBI_species-Homo_sapiens_annotation_release-GCF_000001405.40-RS_2025_08_genome_assemly-unknown.fna
+
+# config for sampling
+interval_config:
+  interval_1:
+    lower: 15
+    upper: 20
+    n: 40
+  interval_2:
+    lower: 21
+    upper: 30
+    n: 80
+  interval_3:
+    lower: 31
+    upper: 40
+    n: 80
+  interval_4:
+    lower: 41
+    upper: 50
+    n: 80
+  interval_5:
+    lower: 51
+    upper: 60
+    n: 24
+  interval_6:
+    lower: 61
+    upper: 70
+    n: 24
+  interval_7:
+    lower: 71
+    upper: 80
+    n: 24
+  interval_8:
+    lower: 81
+    upper: 90
+    n: 24
+  interval_9:
+    lower: 91
+    upper: 100
+    n: 24
+    

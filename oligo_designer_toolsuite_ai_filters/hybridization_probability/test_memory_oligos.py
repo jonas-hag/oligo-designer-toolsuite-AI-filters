@@ -226,7 +226,7 @@ def main():
         n_jobs=args.n_jobs,
     )
 
-    # logger.info(oligo_fasta_file)
+    logger.info(oligo_fasta_file)
     # logger.info("sequences generated")
     # logger.info(print_mem_usage())
 
@@ -256,7 +256,7 @@ def main():
     elapsed_total = end - start
     logger.info(f"Computational time: {str(timedelta(seconds=int(elapsed_total)))}")
 
-    shutil.rmtree(dir_output) #remove oligo designer toolsuite output
+    # shutil.rmtree(dir_output) #remove oligo designer toolsuite output
 
 # def main():
 #     rng = np.random.default_rng(274390)

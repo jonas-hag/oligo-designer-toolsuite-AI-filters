@@ -105,7 +105,7 @@ def determine_oligo_length(oligo_fasta_file: str):
     else:
         return oligo_fasta_file_length
     
-def sample_oligos(oligo_fasta_file, oligo_fasta_file_length, sample_information, suffix, random_generator, logger):
+def sample_oligos(oligo_fasta_file, oligo_fasta_file_length, sample_information, random_generator, logger):
     """
     Read in the oligo length file, sample according to the sample_information and create a new FASTA file.
     This is then read in as a oligo database. sample_information is a dict with the following structure:
@@ -137,7 +137,7 @@ def sample_oligos(oligo_fasta_file, oligo_fasta_file_length, sample_information,
     index_with_header.sort()
 
     # write the sampled lines into a new FASTA file
-    oligo_fasta_file_sampled = oligo_fasta_file.replace(".fna", f"_{suffix}_sampled.fna")
+    oligo_fasta_file_sampled = oligo_fasta_file.replace(".fna", "_sampled.fna")
     with open(oligo_fasta_file, "r") as infile:
         with open(oligo_fasta_file_sampled, "w") as outfile:
             for line_number, line in enumerate(infile):
@@ -170,14 +170,11 @@ def main():
     
     rng = np.random.default_rng(274390)
 
-    interval_config_1 = {
+    interval_config = {
         "interval_1": {"lower": 15, "upper": 20, "n": 40},
         "interval_2": {"lower": 21, "upper": 30, "n": 80},
         "interval_3": {"lower": 31, "upper": 40, "n": 80},
         "interval_4": {"lower": 41, "upper": 50, "n": 80},
-        }
-    
-    interval_config_2 = {
         "interval_5": {"lower": 51, "upper": 60, "n": 24},
         "interval_6": {"lower": 61, "upper": 70, "n": 24},
         "interval_7": {"lower": 71, "upper": 80, "n": 24},
@@ -207,11 +204,9 @@ def main():
     # generate the oligo sequences #
     ################################
 
-    dir_output_1 = "/localscratch/jonas.hagenberg/output_test_odt_memory_1_" + str(time.time())
-    dir_output_2 = "/localscratch/jonas.hagenberg/output_test_odt_memory_2_" + str(time.time())
-    # dir_output = "output_test_odt_memory_" + str(time.time())
-    os.makedirs(dir_output_1, exist_ok=True)
-    os.makedirs(dir_output_2, exist_ok=True)
+    # dir_output = "/localscratch/jonas.hagenberg/output_test_odt_memory_1_" + str(time.time())
+    dir_output = "output_test_odt_memory_" + str(time.time())
+    os.makedirs(dir_output, exist_ok=True)
 
     
     files_fasta = [
@@ -221,78 +216,47 @@ def main():
 
     ##### creating the oligo sequences #####
     logger.info("start generating oligo sequences")
-    oligo_sequences_1 = OligoSequenceGenerator(dir_output=dir_output_1)
-    oligo_sequences_2 = OligoSequenceGenerator(dir_output=dir_output_2)
+    oligo_sequences = OligoSequenceGenerator(dir_output=dir_output)
     
-    oligo_fasta_file_1 = oligo_sequences_1.create_sequences_sliding_window(
+    oligo_fasta_file = oligo_sequences.create_sequences_sliding_window(
         files_fasta_in=files_fasta,
-        length_interval_sequences=(15, 50),
+        length_interval_sequences=(15, 100),
         region_ids=args.region,
         stride=1,
         n_jobs=args.n_jobs,
     )
-    logger.info(oligo_fasta_file_1)
-    logger.info("sequences 15-50 generated")
-    logger.info(print_mem_usage())
-    # the second run appends the data to the same FASTA file
-    oligo_fasta_file_2 = oligo_sequences_2.create_sequences_sliding_window(
-        files_fasta_in=files_fasta,
-        length_interval_sequences=(51, 100),
-        region_ids=args.region,
-        stride=1,
-        n_jobs=args.n_jobs,
-    )
-    logger.info(oligo_fasta_file_2)
-    logger.info("sequences 51-100 generated")
-    logger.info(print_mem_usage())
 
-    logger.info("filter oligos")
-    oligo_fasta_file_filtered_1 = filter_oligos(oligo_fasta_file_1[0])
-    logger.info(oligo_fasta_file_filtered_1)
-    oligo_fasta_file_filtered_2 = filter_oligos(oligo_fasta_file_2[0])
-    logger.info(oligo_fasta_file_filtered_2)
-    logger.info("oligos filtered")
-    logger.info(print_mem_usage())
+    # logger.info(oligo_fasta_file)
+    # logger.info("sequences generated")
+    # logger.info(print_mem_usage())
 
-    logger.info("determine oligo length")
-    oligo_length_1 = determine_oligo_length(oligo_fasta_file_filtered_1)
-    oligo_length_2 = determine_oligo_length(oligo_fasta_file_filtered_2)
-    logger.info("oligo length determined")
-    logger.info(print_mem_usage())
+    # logger.info("filter oligos")
+    # oligo_fasta_file_filtered = filter_oligos(oligo_fasta_file[0])
+    # logger.info(oligo_fasta_file_filtered)
+    # logger.info("oligos filtered")
+    # logger.info(print_mem_usage())
 
-    logger.info("sample oligos")
-    oligo_file_sampled_1 = sample_oligos(oligo_fasta_file_filtered_1, oligo_length_1, interval_config_1, "1", rng, logger)
-    oligo_file_sampled_2 = sample_oligos(oligo_fasta_file_filtered_2, oligo_length_2, interval_config_2, "2", rng, logger)
-    logger.info("oligos sampled")
-    logger.info(print_mem_usage())
+    # logger.info("determine oligo length")
+    # oligo_length = determine_oligo_length(oligo_fasta_file_filtered)
+    # logger.info("oligo length determined")
+    # logger.info(print_mem_usage())
 
-    logger.info("move sampled data")
-    new_dir = "output_test_odt_memory_" + str(time.time())
-    os.makedirs(new_dir)
-    shutil.copy(oligo_file_sampled_1, os.path.join(new_dir, os.path.basename(oligo_file_sampled_1)))
-    shutil.copy(oligo_file_sampled_2, os.path.join(new_dir, os.path.basename(oligo_file_sampled_2)))
-    logger.info("sampled data moved")
-    
+    # logger.info("sample oligos")
+    # oligo_file_sampled = sample_oligos(oligo_fasta_file_filtered, oligo_length, interval_config, rng, logger)
+    # logger.info("oligos sampled")
+    # logger.info(print_mem_usage())
 
-    ################################
-    # generate the reference database #
-    ################################
-
-    logger.info("Generating reference database.")
-    reference_database = ReferenceDatabase(dir_output=dir_output_1)
-    reference_database.load_database_from_file(files=files_fasta, file_type="fasta", database_overwrite = True,)
-    file_reference = reference_database.write_database_to_file(
-            filename=f"db_reference",
-        )
-    logger.info("Generated reference database.")
-    logger.info(print_mem_usage())
+    # logger.info("move sampled data")
+    # new_dir = "output_test_odt_memory_" + str(time.time())
+    # os.makedirs(new_dir)
+    # shutil.copy(oligo_file_sampled, os.path.join(new_dir, os.path.basename(oligo_file_sampled)))
+    # logger.info("sampled data moved")
     
     end = time.time()
     elapsed_total = end - start
     logger.info(f"Computational time: {str(timedelta(seconds=int(elapsed_total)))}")
 
-    shutil.rmtree(dir_output_1) #remove oligo designer toolsuite output
-    shutil.rmtree(dir_output_2) #remove oligo designer toolsuite output
+    shutil.rmtree(dir_output) #remove oligo designer toolsuite output
 
 # def main():
 #     rng = np.random.default_rng(274390)

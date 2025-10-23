@@ -2,10 +2,10 @@
 
 #SBATCH --partition=cpu_p
 #SBATCH --qos=cpu_normal
-#SBATCH --mem=20G
+#SBATCH --mem=30G
 #SBATCH --cpus-per-task=1
-#SBATCH --time=01:00:00
-#SBATCH --ntasks=8
+#SBATCH --time=02:00:00
+#SBATCH --ntasks=24
 
 #SBATCH --job-name=sample_oligos
 #SBATCH --output=%x_%j_output.txt

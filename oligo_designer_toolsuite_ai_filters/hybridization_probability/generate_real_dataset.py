@@ -62,8 +62,8 @@ def generate_off_targets_region(
     :type file_reference: str
     """
 
-    output_file = Path(f"/lustre/groups/aiconsultants/projects/odt-ai/oligo-designer-toolsuite-AI-filters/debugging/debug_odt-ai_joblib_{region_id}.txt")
-    # output_file = Path(f"debugging/debug_odt-ai_joblib_{region_id}.txt")
+    # output_file = Path(f"/lustre/groups/aiconsultants/projects/odt-ai/oligo-designer-toolsuite-AI-filters/debugging/debug_odt-ai_joblib_{region_id}.txt")
+    output_file = Path(f"debugging/debug_odt-ai_joblib_{region_id}.txt")
     with open(output_file, 'a') as file:
         file.write(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}\n")
         file.write(f"start off target region generation for {region_id}\n")
@@ -106,22 +106,25 @@ def generate_off_targets_region(
         file.write(print_mem_usage())
 
     # create the output
+    targets = {}
+    on_targets = []
     off_targets = []
-    sampled_temperatures = []
+    sampled_temperatures = {}
     with open(output_file, 'a') as file:
         file.write("start temp calculating for on-targets\n")
         file.write(print_mem_usage())
     for query in unique_queries:
         temperatures = sample_temperatures(6)
-        sampled_temperatures.append(temperatures)
-        off_targets.extend(generate_datasamples(query, query, query, query, temperatures, 0))
+        sampled_temperatures[query] = temperatures
+        on_targets.extend(generate_datasamples(query, query, query, query, temperatures, 0))
     with open(output_file, 'a') as file:
         file.write("start temp calculating for off-targets\n")
         file.write(print_mem_usage())
-    for query, reference, gapped_query, gapped_reference, temperatures in zip(queries, references, gapped_queries, gapped_references, sampled_temperatures):
+    for query, reference, gapped_query, gapped_reference in zip(queries, references, gapped_queries, gapped_references):
+        temperatures = sampled_temperatures[query]
         n_mismatches = sum(q != r for q, r in zip(gapped_query, gapped_reference))
         off_targets.extend(generate_datasamples(query, reference, gapped_query, gapped_reference, temperatures, n_mismatches))
-    return off_targets
+    return on_targets, off_targets
 
 
 def generate_off_targets(
@@ -133,31 +136,40 @@ def generate_off_targets(
         file_reference: str,
     ):
 
-    off_target_regions = joblib.Parallel(n_jobs=config["n_jobs"])(
-        joblib.delayed(generate_off_targets_region)(
-            oligo_database=oligo_database,
-            alignment_method=alignment_method,
-            file_index=file_index,
-            region_id=region_id,
-            file_reference=file_reference
-        )
-        for region_id in oligo_database.database.keys()
-    )
-
-    # off_target_regions = []
-    # for region_id in oligo_database.database.keys():
-    #     results = generate_off_targets_region(
+    # off_target_regions = joblib.Parallel(n_jobs=config["n_jobs"])(
+    #     joblib.delayed(generate_off_targets_region)(
     #         oligo_database=oligo_database,
     #         alignment_method=alignment_method,
     #         file_index=file_index,
     #         region_id=region_id,
-    #         file_reference=file_reference,
-    #         sampled_oligos_per_region=sampled_oligos_per_region
+    #         file_reference=file_reference
     #     )
-    #     off_target_regions.append(results)
+    #     for region_id in oligo_database.database.keys()
+    # )
 
-    # flatten the list
+    target_regions = []
+    for region_id in oligo_database.database.keys():
+        results = generate_off_targets_region(
+            oligo_database=oligo_database,
+            alignment_method=alignment_method,
+            file_index=file_index,
+            region_id=region_id,
+            file_reference=file_reference,
+        )
+        target_regions.append(results)
+
+    # flatten the list 
+    on_target_regions = [item[0] for item in target_regions]
+    off_target_regions = [item[1] for item in target_regions]
+    on_target_regions = [on_target for region in on_target_regions for on_target in region]
     off_target_regions = [off_target for region in off_target_regions for off_target in region]
+
+    # sampling strategy
+    # 1. sample the required number of oligos per region/oligo length
+
+    # 2. try to sample for every oligo the number of off-targets (5) -> times the different temperatures
+    # 3. if not enough, sample more off-target from existing oligos
+    # 4. if still not enough, sample new oligos
     
     # sample
     if dataset_size > len(off_target_regions):

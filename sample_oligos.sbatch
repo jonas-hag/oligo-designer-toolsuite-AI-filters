@@ -2,7 +2,7 @@
 
 #SBATCH --partition=cpu_p
 #SBATCH --qos=cpu_normal
-#SBATCH --mem=60G
+#SBATCH --mem=120G
 #SBATCH --cpus-per-task=1
 #SBATCH --time=02:00:00
 #SBATCH --ntasks=16

@@ -115,7 +115,7 @@ def sample_oligos(oligo_fasta_file, oligo_fasta_file_length, sample_information,
     if len(information_fewer_oligos) > 0:
         information_fewer_oligos_df = pd.DataFrame(information_fewer_oligos,
                                                    columns=["lower", "upper", "n_expected", "n_actual"])
-        information_fewer_oligos_df.to_csv(os.path.join(config["storage_dir"], "logs" f"{region}_problems_sampling.csv"), index=False)
+        information_fewer_oligos_df.to_csv(os.path.join(config["storage_dir"], "logs", f"{region}_problems_sampling.csv"), index=False)
 
     os.remove(oligo_fasta_file)
     os.remove(oligo_fasta_file_length)

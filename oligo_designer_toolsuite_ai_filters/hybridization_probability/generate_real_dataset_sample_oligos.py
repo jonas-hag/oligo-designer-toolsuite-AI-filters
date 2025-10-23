@@ -13,7 +13,41 @@ import pandas as pd
 import numpy as np
 import joblib
 
+from threading import Thread
+
+from psutil import Process
+
 from oligo_designer_toolsuite.sequence_generator import OligoSequenceGenerator
+
+class MemoryMonitor(Thread):
+    """Monitor the memory usage in MB in a separate thread.
+
+    Note that this class is good enough to highlight the memory profile of
+    Parallel in this example, but is not a general purpose profiler fit for
+    all cases.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.stop = False
+        self.start()
+
+    def get_memory(self):
+        "Get memory of a process and its children."
+        p = Process()
+        memory = p.memory_info().rss
+        for c in p.children():
+            memory += c.memory_info().rss
+        return memory
+
+    def run(self):
+        memory_start = self.get_memory()
+        while not self.stop:
+            print(self.get_memory() - memory_start)
+            time.sleep(10)
+
+    def stop(self):
+        self.stop = True
 
 
 def filter_oligos(oligo_fasta_file: str, logger):
@@ -204,6 +238,8 @@ def main():
     os.makedirs(config["storage_dir"], exist_ok=True)
     os.makedirs(os.path.join(config["storage_dir"], "logs"), exist_ok=True)
 
+    monitor = MemoryMonitor()
+
     queue = multiprocessing.Manager().Queue(-1) 
     listener = logging.handlers.QueueListener(queue, *logging.getLogger().handlers) 
     listener.start()
@@ -219,6 +255,7 @@ def main():
     )
 
     listener.stop()
+    monitor.stop()
 
 if __name__ == "__main__":
     main()

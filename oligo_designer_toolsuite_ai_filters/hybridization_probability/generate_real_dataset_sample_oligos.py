@@ -13,41 +13,41 @@ import pandas as pd
 import numpy as np
 import joblib
 
-from threading import Thread
+from threading import Thread, Event
 
 from psutil import Process
 
 from oligo_designer_toolsuite.sequence_generator import OligoSequenceGenerator
 
 class MemoryMonitor(Thread):
-    """Monitor the memory usage in MB in a separate thread.
+    """Threaded memory monitor that prints process+children RSS (MB) every interval seconds."""
 
-    Note that this class is good enough to highlight the memory profile of
-    Parallel in this example, but is not a general purpose profiler fit for
-    all cases.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self.stop = False
+    def __init__(self, interval: float = 10.0):
+        super().__init__(daemon=True)
+        self._stop_event = Event()
+        self.interval = float(interval)
         self.start()
 
-    def get_memory(self):
-        "Get memory of a process and its children."
+    def get_memory(self) -> int:
+        "Return RSS of current process plus children in bytes."
         p = Process()
         memory = p.memory_info().rss
-        for c in p.children():
-            memory += c.memory_info().rss
+        for c in p.children(recursive=True):
+            try:
+                memory += c.memory_info().rss
+            except Exception:
+                pass
         return memory
 
     def run(self):
         memory_start = self.get_memory()
-        while not self.stop:
-            print(self.get_memory() - memory_start)
-            time.sleep(10)
+        while not self._stop_event.is_set():
+            mem = self.get_memory() - memory_start
+            print(f"[MemoryMonitor] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {mem/1024**2:.1f} MB")
+            time.sleep(self.interval)
 
     def stop(self):
-        self.stop = True
+        self._stop_event.set()
 
 
 def filter_oligos(oligo_fasta_file: str, logger):
@@ -256,6 +256,7 @@ def main():
 
     listener.stop()
     monitor.stop()
+    monitor.join()
 
 if __name__ == "__main__":
     main()

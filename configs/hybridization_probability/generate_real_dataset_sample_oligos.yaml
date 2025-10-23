@@ -1,7 +1,7 @@
 storage_dir : data/hybridization_probability/real_dataset_sampled_oligos # path to the folder where the dataset will be stored
 # oligo_length_min: 15  # minimum length of the oligos;  currently not used
 # oligo_length_max: 100  # maximum length of the oligos; currently not used
-file_regions: data/hybridization_probability/regions/custom_12.csv  # path to the file containing the desired genes
+file_regions: data/hybridization_probability/regions/custom_1000.csv  # path to the file containing the desired genes
 n_jobs: 4  # number of available CPUs (if None the maximum number of CPUs will be used)
 seed: 547389
 

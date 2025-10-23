@@ -43,7 +43,7 @@ class MemoryMonitor(Thread):
         memory_start = self.get_memory()
         while not self._stop_event.is_set():
             mem = self.get_memory() - memory_start
-            print(f"[MemoryMonitor] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {mem/1024**2:.1f} MB")
+            print(f"[MemoryMonitor] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {mem/1024**2:.1f} MB", flush=True)
             time.sleep(self.interval)
 
     def stop(self):

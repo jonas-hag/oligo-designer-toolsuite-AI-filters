@@ -188,12 +188,15 @@ def sample_oligos_one_region(region, config, queue, seed):
         stride=1,
         n_jobs=1,
     )
+    try:
+        oligo_fasta_file_filtered = filter_oligos(oligo_fasta_file[0], logger_)
+        oligo_length = determine_oligo_length(oligo_fasta_file_filtered, logger_)
+        oligo_file_sampled = sample_oligos(oligo_fasta_file_filtered, oligo_length, config["interval_config"], logger_, config, region, seed)
 
-    oligo_fasta_file_filtered = filter_oligos(oligo_fasta_file[0], logger_)
-    oligo_length = determine_oligo_length(oligo_fasta_file_filtered, logger_)
-    oligo_file_sampled = sample_oligos(oligo_fasta_file_filtered, oligo_length, config["interval_config"], logger_, config, region, seed)
-
-    shutil.copy(oligo_file_sampled, os.path.join(config["storage_dir"], os.path.basename(oligo_file_sampled)))
+        shutil.copy(oligo_file_sampled, os.path.join(config["storage_dir"], os.path.basename(oligo_file_sampled)))
+    except Exception as e:
+        logger_.exception(e)
+        logger_.warning(f"Could not sample oligos for {region}")
     
     end = time.time()
     elapsed_total = end - start

@@ -197,6 +197,10 @@ def sample_oligos_one_region(region, config, queue, seed):
     except Exception as e:
         logger_.exception(e)
         logger_.warning(f"Could not sample oligos for {region}")
+        file_logging_error = os.path.join(config["storage_dir"], "logs", f"{region}_error_sampling.txt")
+        with open(file_logging_error, "w"):
+            print(e)
+
     
     end = time.time()
     elapsed_total = end - start

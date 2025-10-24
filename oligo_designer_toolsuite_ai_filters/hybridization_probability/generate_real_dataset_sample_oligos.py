@@ -12,6 +12,7 @@ import importlib.resources as resources
 import pandas as pd
 import numpy as np
 import joblib
+import traceback
 
 from threading import Thread, Event
 
@@ -198,8 +199,10 @@ def sample_oligos_one_region(region, config, queue, seed):
         logger_.exception(e)
         logger_.warning(f"Could not sample oligos for {region}")
         file_logging_error = os.path.join(config["storage_dir"], "logs", f"{region}_error_sampling.txt")
-        with open(file_logging_error, "w"):
-            print(e)
+        # also write this to an extra file for better overview
+        # don't use logger as already used for different log file
+        with open(file_logging_error, "w") as f:
+            traceback.print_exc(file=f)
 
     
     end = time.time()
@@ -238,6 +241,11 @@ def main():
 
     regions_df = pd.read_csv(config["file_regions"])
     regions = regions_df["region_id"].tolist()
+
+    if config["min"] is not None:
+        # assume values to be 1-based index
+        regions = regions[config["min"]-1:config["max"]]
+
 
     np.random.seed(config["seed"])
     list_of_seeds = np.random.randint(1e8, size=len(regions))

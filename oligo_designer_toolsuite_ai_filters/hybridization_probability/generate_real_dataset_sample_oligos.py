@@ -203,7 +203,6 @@ def sample_oligos_one_region(region, config, queue, seed):
         # don't use logger as already used for different log file
         with open(file_logging_error, "w") as f:
             traceback.print_exc(file=f)
-            f.write(oligo_fasta_file)
             f.write(len(oligo_fasta_file))
 
     

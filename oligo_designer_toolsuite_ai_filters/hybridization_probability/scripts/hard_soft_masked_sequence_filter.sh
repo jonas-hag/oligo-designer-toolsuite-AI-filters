@@ -1,5 +1,5 @@
 #!/bin/sh
-awk -v pat='^(N|[^>].*[N[:lower:]])' '
+awk -v pat='^(N|[[:lower:]]|[^>].*[N[:lower:]])' '
   NR==1 { prev=$0; next }
   {
     if ($0 ~ pat) {   # current line matches "N" -> drop previous and current

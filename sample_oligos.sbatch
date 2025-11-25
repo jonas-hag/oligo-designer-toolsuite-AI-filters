@@ -4,7 +4,7 @@
 #SBATCH --qos=cpu_normal
 #SBATCH --mem=120G
 #SBATCH --cpus-per-task=1
-#SBATCH --time=04:00:00
+#SBATCH --time=10:00:00
 #SBATCH --ntasks=16
 
 #SBATCH --job-name=sample_oligos

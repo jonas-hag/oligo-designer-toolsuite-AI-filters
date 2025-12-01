@@ -1,0 +1,10 @@
+n_jobs: 4  # number of available CPUs (if None the maximum number of CPUs will be used)
+seed: 547389
+
+oligo_files: test_blast/infiles
+blast_out_directory: test_blast/outfiles
+
+# genome data source
+annotation_path: /lustre/groups/aiconsultants/projects/odt-ai/oligo-designer-toolsuite-AI-filters/data/hybridization_probability/datasets/reference_db/annotation
+annotation_file: annotation_source-NCBI_species-Homo_sapiens_annotation_release-GCF_000001405.40-RS_2025_08_genome_assemly-unknown.fna
+

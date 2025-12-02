@@ -123,7 +123,7 @@ def main():
     # generate directories
     os.makedirs(config["alignments_out_directory"], exist_ok=True)
     # nupack run
-    nupack.config.cache = config["nupack_cache"]
+    # nupack.config.cache = config["nupack_cache"]
     
 
     ##############

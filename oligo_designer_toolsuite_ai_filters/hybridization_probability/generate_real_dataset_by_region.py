@@ -116,7 +116,7 @@ def main():
     args = parser.parse_args()
     with open(args.config, "r") as handle:
         config = yaml.safe_load(handle)
-    dataset_name = f"real_dataset_{config["alignment_method"]}"
+    dataset_name = f"real_dataset_{config['alignment_method']}"
     # set random seed for reproducibility
     random.seed(config["seed"])
     rnd_gene_shuffling = np.random.RandomState(config["seed"] + 154872)

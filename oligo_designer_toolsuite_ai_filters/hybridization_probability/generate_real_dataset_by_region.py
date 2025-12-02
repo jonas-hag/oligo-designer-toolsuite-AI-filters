@@ -160,7 +160,7 @@ def main():
     # gather files with sampled oligos #
     ###########################
 
-    oligo_files = [f for f in Path(config["oligo_files"]).rglob("*.csv") if f.is_file()]
+    oligo_files = [f for f in Path(config["oligo_files"]).rglob("*.fna") if f.is_file()]
 
     logger.info(f"Found {len(oligo_files)} files for processing.")
 

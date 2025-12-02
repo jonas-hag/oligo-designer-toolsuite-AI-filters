@@ -62,8 +62,7 @@ def generate_off_targets_region(
         table_hits=table_hits, queries=queries, references=references
     )
 
-    # TODO define outfile
-    outfile = os.path.join(config["blast_out_directory"], f"{region_id}_blast_results.csv")
+    outfile = os.path.join(config["alignments_out_directory"], f"{region_id}_blast_results.csv")
 
     with open(outfile, "w") as f:
         f.write("gapped_query, gapped_referencen\n")
@@ -117,14 +116,12 @@ def main():
     args = parser.parse_args()
     with open(args.config, "r") as handle:
         config = yaml.safe_load(handle)
-    dataset_name = f"real_dataset_{config['alignment_method']}_{config['dataset_size']}_{config['oligo_length_min']}_{config['oligo_length_max']}_{config['dataset_size']}"
+    dataset_name = f"real_dataset_{config["alignment_method"]}"
     # set random seed for reproducibility
     random.seed(config["seed"])
     rnd_gene_shuffling = np.random.RandomState(config["seed"] + 154872)
     # generate directories
-    os.makedirs(config["dir_output"], exist_ok=True)
-    plots_dir = os.path.join(config["dir_output"], f"{dataset_name}_plots")
-    os.makedirs(plots_dir, exist_ok=True)
+    os.makedirs(config["alignments_out_directory"], exist_ok=True)
     # nupack run
     nupack.config.cache = config["nupack_cache"]
     
@@ -168,12 +165,28 @@ def main():
     # np.random.seed(config["seed"])
     # list_of_seeds = np.random.randint(1e8, size=len(oligo_files))
 
+    if config["alignment_method"] == "blastn":
+        alignment_method = BlastNFilter(
+            search_parameters = config["search_parameters"],
+            hit_parameters = config["hit_parameters"],
+            names_search_output = config["names_search_output"],
+            dir_output=dir_output
+        )
+    elif config["alignment_method"] == "bowtie":
+        alignment_method = BowtieFilter(
+            search_parameters = config["search_parameters"],
+            dir_output=dir_output
+        )
+    else:
+        raise ValueError("Unknown alignment method.")
+
 
     blasted_oligos = joblib.Parallel(n_jobs=config["n_jobs"])(
         joblib.delayed(generate_off_targets_region)(
             oligo_fasta_file=one_oligo_file,
             config=config,
-            file_reference=file_reference
+            file_reference=file_reference,
+            alignment_method=alignment_method
         )
         for one_oligo_file in oligo_files
     )

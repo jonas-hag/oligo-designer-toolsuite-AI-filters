@@ -181,6 +181,11 @@ def main():
         )
     else:
         raise ValueError("Unknown alignment method.")
+    
+    logger.info("Generate reference file for alignment method.")
+    alignment_method.set_reference_database(reference_database=reference_database)
+    file_index = alignment_method.create_reference(n_jobs=config["n_jobs"])
+    logger.info("Finished generating reference file.")
 
 
     logger.info("Start alignment.")
@@ -188,7 +193,7 @@ def main():
         joblib.delayed(generate_off_targets_region)(
             oligo_fasta_file=one_oligo_file,
             config=config,
-            file_reference=file_reference,
+            file_reference=file_index,
             alignment_method=alignment_method
         )
         for one_oligo_file in oligo_files

@@ -162,6 +162,8 @@ def main():
 
     oligo_files = [f for f in Path(config["oligo_files"]).rglob("*.csv") if f.is_file()]
 
+    logger.info(f"Found {len(oligo_files)} files for processing.")
+
     # np.random.seed(config["seed"])
     # list_of_seeds = np.random.randint(1e8, size=len(oligo_files))
 
@@ -181,6 +183,7 @@ def main():
         raise ValueError("Unknown alignment method.")
 
 
+    logger.info("Start alignment.")
     blasted_oligos = joblib.Parallel(n_jobs=config["n_jobs"])(
         joblib.delayed(generate_off_targets_region)(
             oligo_fasta_file=one_oligo_file,
@@ -190,6 +193,7 @@ def main():
         )
         for one_oligo_file in oligo_files
     )
+    logger.info("Finish alignment.")
 
     shutil.rmtree(dir_output)
 

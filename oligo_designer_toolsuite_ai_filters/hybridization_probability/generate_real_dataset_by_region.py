@@ -7,6 +7,8 @@ import yaml
 import random
 import numpy as np
 import logging
+import logging.handlers
+import multiprocessing
 from datetime import datetime, timedelta
 import nupack
 import joblib
@@ -22,7 +24,14 @@ def generate_off_targets_region(
         config,
         file_reference,
         alignment_method: BlastNFilter,
+        queue
     ):
+
+    logger_ = logging.getLogger(__name__)
+    if not logger_.hasHandlers():
+        logger_.setLevel(logging.INFO)
+        handler = logging.handlers.QueueHandler(queue)
+        logger_.addHandler(handler)
 
     dir_output = "/localscratch/jonas.hagenberg/output_odt_real_blast_" + str(time.time())
     
@@ -44,6 +53,7 @@ def generate_off_targets_region(
         database_overwrite = True,
     )
 
+    logger_.info("start alignment filtering")
     table_hits = alignment_method._run_filter(
         sequence_type='oligo',
         region_id=region_id,
@@ -52,10 +62,13 @@ def generate_off_targets_region(
         consider_hits_from_input_region=True,
         mode=2
     )
+    logger_.info("stop alignment filtering")
 
     # add the gaps
     references = alignment_method._get_references(table_hits, file_reference, region_id)
+    logger_.info(f"len references: {len(references)}\n")
     queries = alignment_method._get_queries(oligo_database, table_hits, region_id, 'oligo')
+    logger_.info(f"len queries: {len(queries)}\n")
     # unique_queries = list(set(queries))
     # align the references and queries by adding gaps
     gapped_queries, gapped_references = alignment_method._add_alignment_gaps(
@@ -65,6 +78,8 @@ def generate_off_targets_region(
     outfile = os.path.join(config["alignments_out_directory"], f"{region_id}_blast_results.csv")
 
     with open(outfile, "w") as f:
+        f.write(f"len references: {len(references)}\n")
+        f.write(f"len queries: {len(queries)}\n")
         f.write("gapped_query, gapped_referencen\n")
         for one_gapped_query, one_gapped_reference in zip(gapped_queries, gapped_references):
             f.write(f"{one_gapped_query}, {one_gapped_reference}\n")
@@ -133,17 +148,25 @@ def main():
     timestamp = datetime.now()
     file_logger = f"log_{dataset_name}_{timestamp.year}-{timestamp.month}-{timestamp.day}-{timestamp.hour}-{timestamp.minute}.txt"
     logging.basicConfig(
-        format="%(asctime)s [%(levelname)s] %(message)s",
+        format="%(asctime)s %(processName)s [%(levelname)s] %(message)s",
         level=logging.INFO,
         handlers=[logging.FileHandler(file_logger), logging.StreamHandler()],
     )
-    logger = logging.getLogger("real_dataset_generation")
+
+    # timestamp = datetime.now()
+    # file_logger = f"log_{dataset_name}_{timestamp.year}-{timestamp.month}-{timestamp.day}-{timestamp.hour}-{timestamp.minute}.txt"
+    # logging.basicConfig(
+    #     format="%(asctime)s [%(levelname)s] %(message)s",
+    #     level=logging.INFO,
+    #     handlers=[logging.FileHandler(file_logger), logging.StreamHandler()],
+    # )
+    # logger = logging.getLogger("real_dataset_generation")
 
     ################################
     # generate the reference database #
     ################################
 
-    logger.info("Generating reference database.")
+    # logger.info("Generating reference database.")
     dir_output = "/localscratch/jonas.hagenberg/output_odt_reference_" + str(time.time())
     files_fasta = [
         os.path.join(config["annotation_path"], f'gene_{config["annotation_file"]}'),
@@ -154,7 +177,7 @@ def main():
     file_reference = reference_database.write_database_to_file(
             filename=f"db_reference",
         )
-    logger.info("Generated reference database.")
+    # logger.info("Generated reference database.")
 
     ###########################
     # gather files with sampled oligos #
@@ -162,7 +185,7 @@ def main():
 
     oligo_files = [f for f in Path(config["oligo_files"]).rglob("*.fna") if f.is_file()]
 
-    logger.info(f"Found {len(oligo_files)} files for processing.")
+    # logger.info(f"Found {len(oligo_files)} files for processing.")
 
     # np.random.seed(config["seed"])
     # list_of_seeds = np.random.randint(1e8, size=len(oligo_files))
@@ -182,23 +205,30 @@ def main():
     else:
         raise ValueError("Unknown alignment method.")
     
-    logger.info("Generate reference file for alignment method.")
+    # logger.info("Generate reference file for alignment method.")
     alignment_method.set_reference_database(reference_database=reference_database)
     file_index = alignment_method.create_reference(n_jobs=config["n_jobs"])
-    logger.info("Finished generating reference file.")
+    # logger.info("Finished generating reference file.")
 
 
-    logger.info("Start alignment.")
+    # logger.info("Start alignment.")
+
+    queue = multiprocessing.Manager().Queue(-1) 
+    listener = logging.handlers.QueueListener(queue, *logging.getLogger().handlers) 
+    listener.start()
+
     blasted_oligos = joblib.Parallel(n_jobs=config["n_jobs"])(
         joblib.delayed(generate_off_targets_region)(
             oligo_fasta_file=one_oligo_file,
             config=config,
             file_reference=file_index,
-            alignment_method=alignment_method
+            alignment_method=alignment_method,
+            queue=queue
         )
         for one_oligo_file in oligo_files
     )
-    logger.info("Finish alignment.")
+    # logger.info("Finish alignment.")
+    listener.stop()
 
     shutil.rmtree(dir_output)
 

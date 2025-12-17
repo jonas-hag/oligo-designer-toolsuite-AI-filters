@@ -38,6 +38,8 @@ def generate_off_targets_region(
     region_id = os.path.basename(oligo_fasta_file)
     region_id = region_id.replace("_filtered_sampled.fna", "")
 
+    logger_.info(f"region: {region_id}")
+
     oligo_database = OligoDatabase(
         min_oligos_per_region=0,
         write_regions_with_insufficient_oligos=True,
@@ -52,6 +54,7 @@ def generate_off_targets_region(
         region_ids=region_id,
         database_overwrite = True,
     )
+    logger_.info(print(oligo_database.database))
 
     logger_.info("start alignment filtering")
     logger_.info(f"file index path: {file_reference}")

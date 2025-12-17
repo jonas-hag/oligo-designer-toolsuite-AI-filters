@@ -54,6 +54,13 @@ def generate_off_targets_region(
     )
 
     logger_.info("start alignment filtering")
+    logger_.info(f"file index path: {file_reference}")
+    path_to_index = Path(file_reference)
+    try:
+        size_bytes = path_to_index.stat().st_size
+        logger_.info(f"size of index: {size_bytes} bytes")
+    except FileNotFoundError:
+        logger_.info("index file not found")
     table_hits = alignment_method._run_filter(
         sequence_type='oligo',
         region_id=region_id,
@@ -63,6 +70,7 @@ def generate_off_targets_region(
         mode=2
     )
     logger_.info("stop alignment filtering")
+    logger_.info(f"Shape of table_hits: {table_hits.shape}")
 
     # add the gaps
     references = alignment_method._get_references(table_hits, file_reference, region_id)

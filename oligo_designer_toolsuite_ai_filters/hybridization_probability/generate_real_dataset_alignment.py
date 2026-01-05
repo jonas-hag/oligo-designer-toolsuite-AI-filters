@@ -56,7 +56,6 @@ def generate_off_targets_region(
         database_overwrite = True,
     )
 
-    logger_.info("start alignment filtering")
     table_hits = alignment_method._run_filter(
         sequence_type='oligo',
         region_id=region_id,
@@ -65,14 +64,10 @@ def generate_off_targets_region(
         consider_hits_from_input_region=True,
         mode=2
     )
-    logger_.info("stop alignment filtering")
-    logger_.info(f"Shape of table_hits: {table_hits.shape}")
 
     # add the gaps
     references = alignment_method._get_references(table_hits, file_reference, region_id)
-    logger_.info(f"len references: {len(references)}\n")
     queries = alignment_method._get_queries(oligo_database, table_hits, region_id, 'oligo')
-    logger_.info(f"len queries: {len(queries)}\n")
     # align the references and queries by adding gaps
     gapped_queries, gapped_references = alignment_method._add_alignment_gaps(
         table_hits=table_hits, queries=queries, references=references
@@ -81,9 +76,9 @@ def generate_off_targets_region(
     outfile = os.path.join(config["alignments_out_directory"], f"{region_id}_blast_results.csv")
 
     with open(outfile, "w") as f:
-        f.write("gapped_query, gapped_referencen\n")
-        for one_gapped_query, one_gapped_reference in zip(gapped_queries, gapped_references):
-            f.write(f"{one_gapped_query}, {one_gapped_reference}\n")
+        f.write("query, gapped_query, gapped_reference\n")
+        for one_query, one_gapped_query, one_gapped_reference in zip(queries, gapped_queries, gapped_references):
+            f.write(f"{one_query}, {one_gapped_query}, {one_gapped_reference}\n")
 
     shutil.rmtree(dir_output)
     return outfile
@@ -184,13 +179,6 @@ def main():
         )
         for one_oligo_file in oligo_files
     )
-    # blasted_oligos = [generate_off_targets_region(
-    #     oligo_fasta_file=one_oligo_file,
-    #         config=config,
-    #         file_reference=file_index,
-    #         alignment_method=alignment_method,
-    #         queue=queue)
-    #         for one_oligo_file in oligo_files]
     listener.stop()
 
     shutil.rmtree(dir_output)

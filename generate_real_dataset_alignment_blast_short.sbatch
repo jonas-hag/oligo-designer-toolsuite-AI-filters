@@ -3,7 +3,7 @@
 #SBATCH --partition=cpu_p
 #SBATCH --qos=cpu_normal
 #SBATCH --mem=60G
-#SBATCH --cpus-per-task=4
+#SBATCH --cpus-per-task=20
 #SBATCH --time=02:00:00
 #SBATCH --ntasks=1
 

@@ -18,7 +18,7 @@ def main():
 
         try:
             completed = subprocess.run(
-                ["bash", str(script_path), file, file_name_short, file_name_long, 30],
+                ["bash", str(script_path), file, file_name_short, file_name_long, "30"],
                 check=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,

@@ -9,6 +9,7 @@ import logging.handlers
 import multiprocessing
 from datetime import datetime
 import joblib
+import re
 
 from oligo_designer_toolsuite.database import OligoDatabase, ReferenceDatabase
 from oligo_designer_toolsuite.oligo_specificity_filter import (
@@ -35,7 +36,8 @@ def generate_off_targets_region(
     # dir_output = "output_odt_real_blast_" + str(time.time())
     
     region_id = os.path.basename(oligo_fasta_file)
-    region_id = region_id.replace("_filtered_sampled.fna", "")
+    region_id_match = re.search(r'^(.*?)(?=_filtered_sampled)', region_id)
+    region_id = region_id_match.group(1)
 
     logger_.info(f"region: {region_id}")
 

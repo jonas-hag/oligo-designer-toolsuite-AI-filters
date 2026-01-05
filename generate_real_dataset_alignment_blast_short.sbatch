@@ -2,9 +2,9 @@
 
 #SBATCH --partition=cpu_p
 #SBATCH --qos=cpu_normal
-#SBATCH --mem=60G
+#SBATCH --mem=100G
 #SBATCH --cpus-per-task=20
-#SBATCH --time=02:00:00
+#SBATCH --time=12:00:00
 #SBATCH --ntasks=1
 
 #SBATCH --job-name=generate_real_alignment_blast_short

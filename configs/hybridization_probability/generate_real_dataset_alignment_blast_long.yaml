@@ -1,0 +1,32 @@
+n_jobs: 16  # number of available CPUs (if None the maximum number of CPUs will be used)
+
+oligo_files: data/hybridization_probability/real_dataset_sampled_oligos/split_fasta_files
+suffix: "*_long.fna"
+alignments_out_directory: data/hybridization_probability/real_dataset_sampled_oligos/blast/long
+
+# genome data source
+annotation_path: /lustre/groups/aiconsultants/projects/odt-ai/oligo-designer-toolsuite-AI-filters/data/hybridization_probability/datasets/reference_db/annotation
+annotation_file: annotation_source-NCBI_species-Homo_sapiens_annotation_release-GCF_000001405.40-RS_2025_08_genome_assemly-unknown.fna
+
+alignment_method: blastn
+search_parameters:
+  task: blastn
+  perc_identity: 50
+  strand: "both" # this parameter is fixed, if reference is whole genome, consider using "both"
+  word_size: 10
+  outfmt: 6 qseqid sseqid length qstart qend qlen qseq sstart send sseq sstrand
+hit_parameters:
+  coverage: 80 # could be turned into min_alignment_length
+names_search_output:
+  - query
+  - reference
+  - alignment_length
+  - query_start
+  - query_end
+  - query_length
+  - query_sequence
+  - reference_start
+  - reference_end
+  - reference_sequence
+  - reference_strand
+

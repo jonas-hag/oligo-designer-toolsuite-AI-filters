@@ -11,12 +11,12 @@ annotation_file: annotation_source-NCBI_species-Homo_sapiens_annotation_release-
 alignment_method: blastn
 search_parameters:
   task: blastn
-  perc_identity: 50
+  perc_identity: 30
   strand: "both" # this parameter is fixed, if reference is whole genome, consider using "both"
   word_size: 10
   outfmt: 6 qseqid sseqid length qstart qend qlen qseq sstart send sseq sstrand
 hit_parameters:
-  coverage: 80 # could be turned into min_alignment_length
+  coverage: 30 # could be turned into min_alignment_length
 names_search_output:
   - query
   - reference

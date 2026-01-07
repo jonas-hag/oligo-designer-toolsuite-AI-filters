@@ -1,0 +1,44 @@
+alignment_files_short: /lustre/groups/aiconsultants/projects/odt-ai/oligo-designer-toolsuite-AI-filters/data/hybridization_probability/real_dataset_sampled_oligos/blast/short
+alignment_files_long: /lustre/groups/aiconsultants/projects/odt-ai/oligo-designer-toolsuite-AI-filters/data/hybridization_probability/real_dataset_sampled_oligos/blast/long
+
+outfile: /lustre/groups/aiconsultants/projects/odt-ai/oligo-designer-toolsuite-AI-filters/data/hybridization_probability/real_dataset_sampled_oligos/blast
+
+# config for sampling
+interval_config:
+  interval_1:
+    lower: 15
+    upper: 20
+    n: 20
+  interval_2:
+    lower: 21
+    upper: 30
+    n: 40
+  interval_3:
+    lower: 31
+    upper: 40
+    n: 40
+  interval_4:
+    lower: 41
+    upper: 50
+    n: 40
+  interval_5:
+    lower: 51
+    upper: 60
+    n: 12
+  interval_6:
+    lower: 61
+    upper: 70
+    n: 12
+  interval_7:
+    lower: 71
+    upper: 80
+    n: 12
+  interval_8:
+    lower: 81
+    upper: 90
+    n: 12
+  interval_9:
+    lower: 91
+    upper: 100
+    n: 12
+

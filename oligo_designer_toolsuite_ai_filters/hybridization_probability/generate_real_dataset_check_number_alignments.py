@@ -9,10 +9,10 @@ def select_alignments(alignment_file, config):
     alignments_short = pd.read_csv(alignment_file)
     alignments_long = pd.read_csv(alignment_file_long)
 
-    # soft-mask the found alignments
+    # ignore lower-case matches
     # I messed up the column names, gapped_query and gapped_reference have a leading whitespace
-    alignments_short = alignments_short[~alignments_short[' gapped_reference'].str.contains(r'[a-z]', na=False)]
-    alignments_long = alignments_long[~alignments_long[' gapped_reference'].str.contains(r'[a-z]', na=False)]
+    alignments_short[' gapped_reference'] = alignments_short[' gapped_reference'].str.upper()
+    alignments_long[' gapped_reference'] = alignments_long[' gapped_reference'].str.upper()
     
     # remove duplicated alignments
     alignments_short.drop_duplicates(subset=["query", " gapped_reference"], inplace=True)

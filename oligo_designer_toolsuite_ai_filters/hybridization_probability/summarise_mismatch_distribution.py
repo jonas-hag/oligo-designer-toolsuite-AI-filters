@@ -9,6 +9,9 @@ calculated per oligo length bin, separately for
     - genes (all other region names)
     - all regions
 
+The same is done for the substitution counts in the "*_substitution_counts.csv" files,
+which are pooled per region type but not split up by oligo length bin.
+
 The region name is extracted from the file name.
 """
 
@@ -30,6 +33,7 @@ from determine_mismatch_distribution import (
 )
 
 FILE_SUFFIX = "_mismatches_per_alignment"
+FILE_SUFFIX_SUBSTITUTIONS = "_substitution_counts"
 PATTERN_INTERGENIC = re.compile(r"^InterReg")
 # the sequences are not needed for the summary and are skipped to save memory
 COLUMNS_USED = [
@@ -96,6 +100,42 @@ def read_mismatch_files(mismatch_files: list) -> pd.DataFrame:
     return mismatches
 
 
+def read_substitution_files(substitution_files: list) -> pd.DataFrame:
+    """Read the substitution counts of all regions and add the region and region type."""
+    substitutions = []
+    for one_substitution_file in substitution_files:
+        one_substitutions = pd.read_csv(one_substitution_file)
+        region = determine_region(one_substitution_file, FILE_SUFFIX_SUBSTITUTIONS)
+        one_substitutions["region"] = region
+        one_substitutions["region_type"] = determine_region_type(region)
+        substitutions.append(one_substitutions)
+
+    return pd.concat(substitutions, axis=0, ignore_index=True)
+
+
+def summarize_substitutions(
+    substitutions: pd.DataFrame, region_type: str
+) -> pd.DataFrame:
+    """Pool the substitution counts of all regions of one region type."""
+    summary = (
+        substitutions.groupby(
+            ["substitution", "query_base", "reference_base"], as_index=False
+        )["n_substitutions"]
+        .sum()
+        .sort_values("substitution")
+        .reset_index(drop=True)
+    )
+    n_substitutions_total = summary["n_substitutions"].sum()
+    summary["fraction_of_substitutions"] = (
+        summary["n_substitutions"] / n_substitutions_total
+        if n_substitutions_total
+        else 0.0
+    )
+    summary.insert(0, "region_type", region_type)
+
+    return summary
+
+
 def summarize_region_type(mismatches: pd.DataFrame, region_type: str) -> pd.DataFrame:
     """Calculate the summary per length bin for one region type."""
     summary = summarize_by_bin(mismatches)
@@ -160,14 +200,24 @@ def main():
     if not mismatch_files:
         raise ValueError(f"No files matching {args.pattern} found in {indir}.")
 
+    substitution_files = sorted(
+        f for f in indir.glob(f"*{FILE_SUFFIX_SUBSTITUTIONS}.csv") if f.is_file()
+    )
+    if not substitution_files:
+        raise ValueError(
+            f"No files matching *{FILE_SUFFIX_SUBSTITUTIONS}.csv found in {indir}."
+        )
+
     #########################
     # summarise mismatches #
     #########################
 
     mismatches = read_mismatch_files(mismatch_files)
+    substitutions = read_substitution_files(substitution_files)
 
     summaries = []
     distributions = []
+    substitution_summaries = []
     for region_type in ["gene", "intergenic"]:
         mismatches_region_type = mismatches[mismatches["region_type"] == region_type]
         if mismatches_region_type.empty:
@@ -177,11 +227,20 @@ def main():
         distributions.append(
             distribution_region_type(mismatches_region_type, region_type)
         )
+        substitution_summaries.append(
+            summarize_substitutions(
+                substitutions[substitutions["region_type"] == region_type], region_type
+            )
+        )
     summaries.append(summarize_region_type(mismatches, "all"))
     distributions.append(distribution_region_type(mismatches, "all"))
+    substitution_summaries.append(summarize_substitutions(substitutions, "all"))
 
     summaries = pd.concat(summaries, axis=0, ignore_index=True)
     distributions = pd.concat(distributions, axis=0, ignore_index=True)
+    substitution_summaries = pd.concat(
+        substitution_summaries, axis=0, ignore_index=True
+    )
 
     #########################
     # write results #
@@ -189,9 +248,11 @@ def main():
 
     file_summary = outdir / "mismatch_summary_by_bin_and_region_type.csv"
     file_distributions = outdir / "mismatch_distribution_by_bin_and_region_type.csv"
+    file_substitutions = outdir / "substitution_counts_by_region_type.csv"
 
     summaries.to_csv(file_summary, index=False)
     distributions.to_csv(file_distributions, index=False)
+    substitution_summaries.to_csv(file_substitutions, index=False)
 
     n_regions = mismatches["region"].nunique()
     n_intergenic = mismatches[mismatches["region_type"] == "intergenic"][
@@ -202,7 +263,8 @@ def main():
         f"({n_regions} regions: {n_regions - n_intergenic} genes, {n_intergenic} intergenic)"
     )
     print(summaries.to_string(index=False))
-    print(f"Written to:\n{file_summary}\n{file_distributions}")
+    print(substitution_summaries.to_string(index=False))
+    print(f"Written to:\n{file_summary}\n{file_distributions}\n{file_substitutions}")
 
 
 if __name__ == "__main__":

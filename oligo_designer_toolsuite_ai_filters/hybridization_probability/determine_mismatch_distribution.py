@@ -11,10 +11,16 @@ compared position by position and the following mismatch types are counted:
     - deletion: the query has a "-" at this position (the query is missing a base)
 
 The counts are aggregated per oligo length bin and written to three csv files.
+
+In addition, it is counted which base of the query is aligned to which base of the
+reference for all mutations (e.g. A>T, A>G, A>C, ...). These substitutions are counted
+over all alignments of the file, i.e. they are not split up by oligo length bin, and are
+written to a fourth csv file.
 """
 
 import argparse
 import os
+from collections import Counter
 from pathlib import Path
 
 import pandas as pd
@@ -48,6 +54,14 @@ MISMATCH_COLUMNS = [
     "n_deletions",
 ]
 
+BASES = ["A", "C", "G", "T"]
+SUBSTITUTION_COLUMNS = [
+    "substitution",
+    "query_base",
+    "reference_base",
+    "n_substitutions",
+]
+
 
 def assign_length_bin(oligo_length: int) -> str:
     """Assign an oligo length to one of the length bins."""
@@ -57,12 +71,18 @@ def assign_length_bin(oligo_length: int) -> str:
     return BIN_LABEL_OUT_OF_RANGE
 
 
-def classify_alignment(gapped_query: str, gapped_reference: str) -> dict:
+def classify_alignment(
+    gapped_query: str, gapped_reference: str, substitutions: Counter = None
+) -> dict:
     """Count matches, mutations, insertions and deletions of one alignment.
 
     Sequences are expected to be upper case and of equal length. Ambiguous bases ("N")
     are treated like any other base, i.e. they count as a mutation if the two strands
     differ at this position.
+
+    If a Counter is passed as substitutions, the (query base, reference base) pair of
+    every mutation is added to it. The same Counter is used for all alignments of one
+    file, so that the substitutions are counted over all alignments.
     """
     n_matches = 0
     n_mutations = 0
@@ -81,6 +101,8 @@ def classify_alignment(gapped_query: str, gapped_reference: str) -> dict:
             n_matches += 1
         else:
             n_mutations += 1
+            if substitutions is not None:
+                substitutions[(base_query, base_reference)] += 1
 
     return {
         "alignment_length": len(gapped_query),
@@ -120,8 +142,43 @@ def read_alignments(alignment_file: Path) -> pd.DataFrame:
     return alignments
 
 
-def determine_mismatches(alignments: pd.DataFrame) -> pd.DataFrame:
-    """Count the mismatch types of every alignment and assign the oligo length bin."""
+def count_substitutions(substitutions: Counter) -> pd.DataFrame:
+    """Turn the counted substitutions into a table.
+
+    All 12 combinations of the four bases are always part of the table, even if they
+    did not occur. Substitutions with other bases (e.g. "N" in the reference genome)
+    are appended, so that they are not lost.
+    """
+    combinations = [
+        (query, reference)
+        for query in BASES
+        for reference in BASES
+        if query != reference
+    ]
+    combinations += sorted(set(substitutions) - set(combinations))
+
+    substitution_counts = pd.DataFrame(
+        [
+            {
+                "substitution": f"{query}>{reference}",
+                "query_base": query,
+                "reference_base": reference,
+                "n_substitutions": substitutions[(query, reference)],
+            }
+            for query, reference in combinations
+        ],
+        columns=SUBSTITUTION_COLUMNS,
+    )
+
+    return substitution_counts
+
+
+def determine_mismatches(alignments: pd.DataFrame) -> tuple:
+    """Count the mismatch types of every alignment and assign the oligo length bin.
+
+    Returns the mismatch counts per alignment and the substitution counts over all
+    alignments of the file.
+    """
     unequal_length = alignments["gapped_query"].str.len() != alignments[
         "gapped_reference"
     ].str.len()
@@ -132,11 +189,14 @@ def determine_mismatches(alignments: pd.DataFrame) -> pd.DataFrame:
         )
         alignments = alignments[~unequal_length]
 
+    # the substitutions of all alignments of this file are collected in one Counter
+    substitutions = Counter()
+
     # the columns are set explicitly, otherwise alignment files without any alignment
     # would result in a DataFrame without any column
     mismatches = pd.DataFrame(
         [
-            classify_alignment(gapped_query, gapped_reference)
+            classify_alignment(gapped_query, gapped_reference, substitutions)
             for gapped_query, gapped_reference in zip(
                 alignments["gapped_query"], alignments["gapped_reference"]
             )
@@ -161,7 +221,7 @@ def determine_mismatches(alignments: pd.DataFrame) -> pd.DataFrame:
         ordered=True,
     )
 
-    return mismatches
+    return mismatches, count_substitutions(substitutions)
 
 
 def summarize_by_bin(mismatches: pd.DataFrame) -> pd.DataFrame:
@@ -257,7 +317,7 @@ def main():
     #########################
 
     alignments = read_alignments(alignment_file)
-    mismatches = determine_mismatches(alignments)
+    mismatches, substitution_counts = determine_mismatches(alignments)
     if mismatches.empty:
         print(f"No alignments found in {alignment_file}, writing empty result files.")
     summary = summarize_by_bin(mismatches)
@@ -272,14 +332,19 @@ def main():
     file_distributions = (
         outdir / f"{alignment_file.stem}_mismatch_distribution_by_bin.csv"
     )
+    file_substitutions = outdir / f"{alignment_file.stem}_substitution_counts.csv"
 
     mismatches.to_csv(file_mismatches, index=False)
     summary.to_csv(file_summary, index=False)
     distributions.to_csv(file_distributions, index=False)
+    substitution_counts.to_csv(file_substitutions, index=False)
 
     print(f"Analysed {mismatches.shape[0]} alignments from {alignment_file}")
     print(summary.to_string(index=False))
-    print(f"Written to:\n{file_mismatches}\n{file_summary}\n{file_distributions}")
+    print(
+        f"Written to:\n{file_mismatches}\n{file_summary}\n{file_distributions}"
+        f"\n{file_substitutions}"
+    )
 
 
 if __name__ == "__main__":

@@ -39,6 +39,14 @@ MISMATCH_TYPES = {
     "insertion": "n_insertions",
     "deletion": "n_deletions",
 }
+# the counts determined for every alignment by classify_alignment
+MISMATCH_COLUMNS = [
+    "alignment_length",
+    "n_matches",
+    "n_mutations",
+    "n_insertions",
+    "n_deletions",
+]
 
 
 def assign_length_bin(oligo_length: int) -> str:
@@ -124,6 +132,8 @@ def determine_mismatches(alignments: pd.DataFrame) -> pd.DataFrame:
         )
         alignments = alignments[~unequal_length]
 
+    # the columns are set explicitly, otherwise alignment files without any alignment
+    # would result in a DataFrame without any column
     mismatches = pd.DataFrame(
         [
             classify_alignment(gapped_query, gapped_reference)
@@ -132,7 +142,8 @@ def determine_mismatches(alignments: pd.DataFrame) -> pd.DataFrame:
             )
         ],
         index=alignments.index,
-    )
+        columns=MISMATCH_COLUMNS,
+    ).astype(int)
 
     mismatches = pd.concat(
         [
@@ -247,6 +258,8 @@ def main():
 
     alignments = read_alignments(alignment_file)
     mismatches = determine_mismatches(alignments)
+    if mismatches.empty:
+        print(f"No alignments found in {alignment_file}, writing empty result files.")
     summary = summarize_by_bin(mismatches)
     distributions = distribution_by_bin(mismatches)
 

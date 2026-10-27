@@ -67,12 +67,23 @@ def determine_region_type(region: str) -> str:
 def read_mismatch_files(mismatch_files: list) -> pd.DataFrame:
     """Read the mismatch files of all regions and add the region and the region type."""
     mismatches = []
+    n_regions_without_alignments = 0
     for one_mismatch_file in mismatch_files:
         one_mismatches = pd.read_csv(one_mismatch_file, usecols=COLUMNS_USED)
+        if one_mismatches.empty:
+            # regions without any alignment contribute nothing to the counts, but would
+            # turn the count columns into object columns when they are concatenated
+            n_regions_without_alignments += 1
+            continue
         region = determine_region(one_mismatch_file)
         one_mismatches["region"] = region
         one_mismatches["region_type"] = determine_region_type(region)
         mismatches.append(one_mismatches)
+
+    if n_regions_without_alignments:
+        print(f"Skipped {n_regions_without_alignments} regions without any alignment.")
+    if not mismatches:
+        raise ValueError("None of the files contains an alignment.")
 
     mismatches = pd.concat(mismatches, axis=0, ignore_index=True)
     # restore the order of the length bins that is lost when writing to csv

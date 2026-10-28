@@ -49,11 +49,11 @@ COLUMNS_USED = [
 ]
 
 
-def determine_region(mismatch_file: Path) -> str:
-    """Extract the region name from the name of the mismatch file."""
+def determine_region(mismatch_file: Path, file_suffix: str = FILE_SUFFIX) -> str:
+    """Extract the region name from the name of the mismatch or substitution file."""
     region = mismatch_file.stem
-    if region.endswith(FILE_SUFFIX):
-        region = region[: -len(FILE_SUFFIX)]
+    if region.endswith(file_suffix):
+        region = region[: -len(file_suffix)]
     # the file names of the alignments start with the region name,
     # e.g. ABCA13_filtered_sampled_blast_results_filtered_sample
     region_match = re.search(r"^(.*?)(?=_filtered_sampled)", region)
